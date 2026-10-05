@@ -49,5 +49,20 @@ services:
       start_period: 5s
     stop_grace_period: 30s
 
+  bot:
+    profiles: [bot]
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    command: ["/app/bot"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-musicgetter}:${POSTGRES_PASSWORD:-musicgetter}@postgres:5432/${POSTGRES_DB:-musicgetter}?sslmode=disable
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    depends_on:
+      backend:
+        condition: service_healthy
+    stop_grace_period: 30s
+
 volumes:
   postgres_data:

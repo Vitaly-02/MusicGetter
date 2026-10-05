@@ -1,6 +1,6 @@
 # PostgreSQL: domain model и persistence
 
-Реализованы миграции 00001–00004, expected schema version — 4. Schema `musicgetter`,
+Реализованы миграции 00001–00005, expected schema version — 5. Schema `musicgetter`,
 UUID через `gen_random_uuid()`, timestamptz, bigint для Telegram IDs, duration и
 позиций. Нет pgcrypto/ORM или стороннего генератора UUID. PostgreSQL 17 в Compose.
 
@@ -9,7 +9,9 @@ UUID через `gen_random_uuid()`, timestamptz, bigint для Telegram IDs, du
 | Domain entity / таблица | Назначение | Идемпотентность / связи |
 |---|---|---|
 | User / users | Владелец, Telegram user ID | UNIQUE telegram_user_id, ID > 0 |
-| ExtensionPairing / extension_pairings | Code/challenge SHA-256 hashes, подтверждённый owner, expires/consumed timestamps | UNIQUE code_hash; hash 32 bytes; атомарное одноразовое consume после confirm |
+| ExtensionPairing / extension_pairings | Code/challenge SHA-256 hashes, owner, expires/consumed/revoked timestamps | UNIQUE code_hash; hash 32 bytes; challenge nullable только при известном owner; одноразовое consume |
+| ExtensionSession / extension_sessions | Собственная extension session, owner, expires/revoked | UNIQUE token_hash (SHA-256, 32 bytes), plaintext не хранится |
+| telegram_updates | Claim управляющего бота без payload | PRIMARY KEY(bot_id,update_id) |
 | SourceProfile / source_profiles | Отдельный аккаунт источника, пользовательский profile key и label | UNIQUE (owner_id,source,profile_key); не хранит credentials стриминга |
 | SourceCollection / source_collections | favorites/playlist/album/selection, title, collection key, provisional flag | UNIQUE (profile_id,collection_key); FK на owner/source/profile |
 | DestinationConnection / destination_connections | Adapter/account namespace без credentials | UNIQUE (owner_id,adapter,account_key) |
@@ -117,8 +119,8 @@ job. Claim не начинает match/deliver для terminal import; reconcile
 00002 создаёт аккаунты/коллекции; 00003 — tracks/mappings/memberships;
 00004 — imports/items/jobs. Новые таблицы не переписывают старую business data;
 DDL и UNIQUE indexes выполняются на новых таблицах внутри migration transactions.
-Goose lock сериализует runners. Readiness version 4 несовместим со старым бинарником
-version 1: сначала coordinated upgrade, для rolling deploy нужен expand/contract.
+Goose lock сериализует runners. Readiness version 5 несовместим со старым бинарником
+version 4: сначала coordinated upgrade, для rolling deploy нужен expand/contract.
 
 Down удаляет соответствующие таблицы вместе с данными. В dev/test можно проверить
 на изолированной БД; для рабочей базы — backup и остановка writers, предпочтительно
@@ -126,7 +128,13 @@ forward repair. Нет CASCADE на неизвестные объекты. 00001
 только пустую schema через RESTRICT. Короткий retention ledger запрещён: удаление
 membership/history idempotency keys разрушает гарантию повторного импорта.
 
-Ещё не реализованы captures/batches, extension sessions, candidate history,
-collection mappings, target creation operations, Telegram update dedup и API auth.
+00005 добавляет sessions, update dedup и bot-issued pairing; миграционные
+блокировки/rollback описаны в ADR-0010. SessionRepository владеет короткими
+транзакциями для issue/redeem/revoke, блокирует user row перед writes. BotQueries
+читает owner-scoped imports по (created_at DESC,id DESC), limit 10,
+агрегирует статус одного import в SQL; playlists имеют UUID keyset.
+
+Ещё не реализованы captures/batches, candidate history, collection mappings
+и target creation operations. Авторизация пока подключена только к session endpoint.
 В будущем Seal должен атомарно создавать Import/Items/Jobs в существующем protocol;
 наличие repository Create не означает, что unsealed capture уже импортируется.

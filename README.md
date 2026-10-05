@@ -5,8 +5,8 @@ Monorepo для переноса музыкальных коллекций из 
 
 Реализован bootstrap Go backend: environment configuration, PostgreSQL pool,
 SQL migrations, HTTP health endpoints, JSON slog, request ID, recovery и graceful
-shutdown. Добавлены domain model, PostgreSQL repositories и schema version 4.
-Исполнение импорта, Telegram integrations и extension runtime пока не реализованы.
+shutdown. Добавлены domain model, PostgreSQL repositories и schema version 5. Работают управляющий Telegram bot и pairing/extension sessions.
+Исполнение импорта, музыкальный destination и extension runtime пока не реализованы.
 Расширение будет читать только доступный пользователю rendered DOM; API стримингов,
 перехват запросов и передача их credentials запрещены.
 
@@ -67,10 +67,64 @@ make run
 Пул проверяется при старте; недоступная БД или неверная конфигурация дают exit 1.
 Пустая/несовместимая схема не мешает запуску HTTP, но readiness возвращает 503.
 
+## Telegram bot
+
+Создайте собственного управляющего бота через BotFather и добавьте
+`TELEGRAM_BOT_TOKEN` в локальный `.env` (файл игнорируется Git). Токен музыкального
+destination не нужен. Для запуска на хосте после настройки PostgreSQL:
+
+```sh
+set -a
+. ./.env
+set +a
+make migrate-up
+make bot
+```
+
+В другом терминале `make run` запускает HTTP endpoint для extension pairing.
+Бот работает в long polling: публичный Telegram webhook не нужен, но исходящий
+HTTPS к api.telegram.org обязателен. Для одного bot token запускайте один poller.
+Если ранее настроен webhook, отключите его отдельно перед запуском. SIGINT/SIGTERM
+завершает long poll. Ошибки авторизации/конфликт poller приводят к остановке.
+
+Запуск через Docker (после заполнения `.env`):
+
+```sh
+make docker-up
+docker compose --profile bot up -d --build bot
+docker compose logs -f bot
+# Остановить все сервисы, включая opt-in bot:
+docker compose --profile bot down
+```
+
+Бот не запускается по умолчанию при `make docker-up`.
+
+| Команда бота | Поведение |
+|---|---|
+| `/start`, `/help` | Описание, справка и inline menu |
+| `/connect` | Одноразовый код на 5 минут; новый код отменяет предыдущий |
+| `/imports` | Импорты пользователя, страницы по 10 записей |
+| `/status [UUID]` | Состояние и счётчики треков; без ID — последний импорт |
+| `/playlists` | Сохранённые destination collections; без обращения к музыкальному боту |
+| `/settings` | Число активных sessions и кнопка отзыва всех подключений |
+
+Команды и callbacks работают только в личном чате владельца. Код из `/connect`
+вводится в расширение; backend принимает `POST /v1/pairings/redeem` с JSON
+`{"code":"..."}` и возвращает собственный bearer token один раз. Сессия действует
+30 дней; проверка через `GET /v1/extension/session` с Authorization: Bearer.
+В БД хранятся только SHA-256 hashes. Отзыв из settings закрывает sessions и pending
+codes. Подробные DTO и статусы — [протокол](docs/protocol.md).
+
+Повтор Telegram update не запускает команду снова. Если процесс упал после claim,
+ответ может потеряться: повторите команду новым сообщением. При потерянном ответе
+redeem запросите новый `/connect`. Импорт pipeline и управление удалёнными
+плейлистами на этом этапе не запускаются.
+
 ## Команды
 
 | Команда | Что делает |
 |---|---|
+| `make bot` | Собрать bin/bot и запустить long polling |
 | `make run` | Собрать bin/server и запустить в foreground |
 | `make test` | Unit и локальные HTTP lifecycle tests с race detector, без PostgreSQL |
 | `make lint` | Проверить gofmt и go vet |
@@ -126,6 +180,7 @@ worker и destination integration ещё не реализованы.
 
 | Environment variable | Default | Назначение |
 |---|---|---|
+| TELEGRAM_BOT_TOKEN | обязательно для bot | Токен нашего управляющего бота из BotFather |
 | DATABASE_URL | обязательно | PostgreSQL URL/DSN; production TLS настраивается здесь |
 | HTTP_ADDR | :8080 | Адрес listener на хосте |
 | LOG_LEVEL | info | debug/info/warn/error, JSON в stdout |
@@ -154,7 +209,7 @@ HTTP_WRITE_TIMEOUT`. Compose ждёт остановку 30s: при увели�
 - Ошибка: `{"error":{"code":"not_ready","message":"Service is not ready"},"requestId":"..."}`.
 - X-Request-ID принимается только из 1–64 ASCII букв/цифр/`-`/`_`, иначе генерируется.
   Он передаётся в response header, context и request logger; это correlation,
-  а не authentication. Авторизация бизнес-API ещё не реализована.
+  а не authentication. Bearer authorization реализована для extension/session.
 - Логи содержат status/duration/request ID; URL query, DSN и panic values исключены.
   Recovery до отправки ответа возвращает JSON 500; после частичного ответа
   прерывает connection/stream, не дописывая JSON к успешному payload.

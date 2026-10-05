@@ -4,9 +4,9 @@
 Эти правила применяются ко всему monorepo. Перед работой прочитайте
 `docs/architecture.md`, `docs/database.md`, `docs/verification.md` и ADR в
 `docs/adr/`. Реализованы bootstrap HTTP backend, domain model, PostgreSQL
-repositories и отдельная команда SQL migrations.
-Бизнес-логика импорта, worker/bot runtime и реальные source/destination adapters
-ещё не реализованы.
+repositories, отдельная команда SQL migrations, управляющий Telegram bot
+и bot-issued pairing/extension sessions (ADR-0010). Бизнес-логика импорта, worker
+и реальные source/destination adapters ещё не реализованы.
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
 границы очередной задачи; изменение принятого решения отражайте в ADR.
 
@@ -51,6 +51,17 @@ repositories и отдельная команда SQL migrations.
   по умолчанию. Secrets только из конфигурации окружения/secret storage.
 - Изменение схемы — миграция с описанием совместимости, блокировок и отката;
   тесты на реальном PostgreSQL для UNIQUE, транзакций и конкурентного claim.
+
+## Telegram и собственная авторизация
+- Команды принимаются только от проверенных private-chat updates через Bot API.
+  Owner всегда определяется по from.id; callback/DTO не задаёт owner.
+- Pairing: crypto/rand 128 bits, TTL 5 минут; extension token: 256 bits, TTL 30 дней.
+  В БД только SHA-256 hashes. Redeem и создание session — одна транзакция.
+- Issue/redeem/revoke сериализуются по user row. Revoke отменяет pending codes.
+- Не логировать Telegram payloads, pairing codes, bearer tokens и Bot API URLs.
+  Обёртки transport errors не должны сохранять URL с bot token.
+- Claim update до handler даёт at-most-once попытку, а не гарантированную доставку.
+  Новый business use case должен отдельно определить semantics retries.
 
 ## Проверка изменений
 - При реализации важных решений добавлять поведенческие тесты, включая сбои

@@ -1,28 +1,35 @@
 # Проект протокола extension ↔ backend ↔ управляющий bot
 
 JSON поверх HTTPS, prefix /v1, серверная валидация схем и лимитов обязательна.
-Это проект маршрутов; OpenAPI и handlers появятся вместе с реализацией.
+Pairing/session handlers реализованы; маршруты импорта ниже остаются проектом.
 Никаких multipart pages, произвольных metadata blobs или streaming credentials.
 
 ## Привязка
 
-1. Extension создаёт локальный высокоэнтропийный verifier и отправляет его hash
-   challenge в POST /v1/pairings. Backend возвращает одноразовый code и Telegram
-   deep link; TTL 5 минут, лимиты по устройству/IP, код хранится только hash.
-2. Пользователь открывает управляющего бота, видит запрос привязки и явно
-   подтверждает его. Telegram user ID берётся из проверенного Telegram update.
-3. Extension погашает code + verifier через POST /v1/pairings/redeem. Одноразовый
-   atomic consume выдаёт scoped MusicGetter session. Сам deep link не даёт session;
-   code без verifier не может привязать чужой экземпляр extension.
-4. Session хранится только в extension storage с доступом trusted contexts;
-   используется в Authorization к backend; отзыв через bot/settings. Истечение
-   требует повторной привязки в первой версии, refresh rotation отложен.
+Реализованный flow (ADR-0010):
 
-Это credential нашего сервиса. Cookies/tokens стриминга не читаются ни на одном
-шаге. Telegram Bot API допустим для нашего управляющего бота; запрещены source API.
-В production webhook проверяет Telegram secret; local dev может использовать
-long polling, но одновременно один способ доставки. Повторные update_id не
-дублируют команды. Точные integration details проверяются при реализации.
+1. Пользователь в личном чате вызывает `/connect`. Бот выдаёт 26-символьный
+   Base32 code из 128 random bits, TTL ровно 5 минут. Новый код заменяет старый.
+2. Extension отправляет `POST /v1/pairings/redeem`, Content-Type application/json,
+   body `{"code":"..."}` (до 1024 bytes, unknown fields отклоняются). Owner не передаётся.
+3. В одной транзакции code потребляется и создаётся 30-дневная session.
+   Ответ 201: `{"token":"mge_...","tokenType":"Bearer","session":{"id":"...","ownerId":"...","expiresAt":"..."}}`.
+   Cache-Control: no-store. Повтор/expired/revoked code: 401; DB failure: 503.
+   Если ответ потерян, требуется новый `/connect`; восстановить plaintext token нельзя.
+4. `GET /v1/extension/session` с `Authorization: Bearer mge_...` возвращает
+   session (200) либо 401 при invalid/expired/revoked token. Чтение БД на каждом запросе.
+5. `/settings` → «Отозвать все подключения» отзывает все sessions и pending codes.
+
+Код — bearer secret нашего сервиса: не публиковать и не пересылать. Backend хранит
+только SHA-256 code/token. Extension storage с доступом trusted contexts ещё предстоит
+реализовать вместе с расширением. Никакие streaming cookies/tokens не участвуют.
+Production transport — HTTPS; HTTP только для локальной разработки на loopback.
+
+Старый extension-first challenge/verifier flow остаётся только repository contract,
+публичного POST /v1/pairings нет. Bot-issued redeem принимает только коды нового flow.
+Telegram Bot API используется через long polling; webhook пока не реализован.
+Повтор update_id не выполняет handler повторно. Claim перед handler допускает потерю
+ответа при crash: новое сообщение с той же командой — новая попытка (см. ADR-0010).
 
 ## Приём
 
@@ -68,7 +75,9 @@ Telegram/HTML, не выполнять их и не загружать server-si
 
 Application use cases общие с API: привязать/отозвать session, выбрать connection
 и target, список импортов, прогресс, cancel/retry, review candidates, настройки и
-список/mapping коллекций. Callback data содержит opaque ID действия, а server
+список/mapping коллекций. Для текущих read-only callbacks data содержит UUID import/cursor, owner проверяется
+по sender; revoke — явная фиксированная команда в settings. Для будущих review
+операций callback data содержит opaque ID действия, а server
 проверяет owner, текущую версию item и срок действия; не доверять ID из callback.
 Управление удалёнными playlist (создание/переименование/удаление) зависит от
 capabilities; destructive операции требуют явного отдельного действия пользователя.

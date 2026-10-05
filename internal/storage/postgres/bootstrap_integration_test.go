@@ -4,6 +4,7 @@ package postgres_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http/httptest"
@@ -100,7 +101,7 @@ func TestFailedMigrationRollsBack(t *testing.T) {
 		}
 		files[entry.Name()] = &fstest.MapFile{Data: data}
 	}
-	files["00005_failure.sql"] = &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE musicgetter.rollback_probe (id int);\nSELECT missing_migration_function();\n-- +goose Down\nDROP TABLE musicgetter.rollback_probe;\n")}
+	files[fmt.Sprintf("%05d_failure.sql", migrations.Version+1)] = &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE musicgetter.rollback_probe (id int);\nSELECT missing_migration_function();\n-- +goose Down\nDROP TABLE musicgetter.rollback_probe;\n")}
 	if err := postgres.Migrate(ctx, cfg, files, "up"); err == nil {
 		t.Fatal("expected migration failure")
 	}

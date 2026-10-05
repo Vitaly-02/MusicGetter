@@ -1,7 +1,8 @@
 # Архитектура MusicGetter
 
-Статус: принятые границы и проект контрактов; реализованы bootstrap backend, domain model и PostgreSQL repositories.
-Импорт и интеграции остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md.
+Статус: принятые границы и проект контрактов; реализованы bootstrap backend, domain model, PostgreSQL repositories, управляющий
+Telegram bot и собственные extension sessions.
+Импорт и интеграции остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010.
 
 ## Поток данных
 
@@ -46,6 +47,7 @@ flowchart TD
 │   ├── logging/                # JSON slog, context logger
 │   ├── domain/                 # entities, states, metadata, fingerprint v1
 │   ├── import/contracts.go     # ingestion, leases; package importer
+│   ├── pairing/                # issue/redeem/revoke собственных credentials
 │   ├── matcher/contracts.go    # catalog и versioned matching policy
 │   ├── destination/contracts.go
 │   ├── storage/postgres/       # pool, readiness, Goose и domain repositories
@@ -66,8 +68,8 @@ flowchart TD
 │   ├── database.md
 │   ├── protocol.md
 │   ├── verification.md
-│   └── adr/                    # 0001–0009 + индекс
-└── deploy/Dockerfile           # server и migrate, runtime без root
+│   └── adr/                    # 0001–0010 + индекс
+└── deploy/Dockerfile           # server, migrate и bot, runtime без root
 ```
 
 Пустые каталоги закреплены .gitkeep. cmd/worker добавлен, чтобы масштабирование

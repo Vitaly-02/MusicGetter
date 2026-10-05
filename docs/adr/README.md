@@ -12,3 +12,4 @@
 - [0007 — Явный SQL и проверки важных решений](0007-schema-and-verification.md)
 - [0008 — Backend bootstrap, миграции и lifecycle](0008-backend-bootstrap.md)
 - [0009 — Domain identity, constraints и persistence](0009-domain-identity-persistence.md)
+- [0010 — Telegram bot, pairing и extension sessions](0010-telegram-pairing-sessions.md)

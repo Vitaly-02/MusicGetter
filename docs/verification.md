@@ -17,6 +17,12 @@ delayed availability и reconciliation после cancelled import. Migration te
 проверяют upgrade с версии 2, сохранение User, полный down до 0 и повторный up.
 Все интеграционные проверки используют изолированные БД PostgreSQL.
 
+Telegram/auth: все команды, inline callbacks, private sender ownership,
+ошибки без secrets, ограничение titles/страниц, HTTP schema/context, Bot API wire
+protocol, polling dedup/failures/panic. PostgreSQL: code TTL 5 минут, hash-only storage,
+12 конкурентных redeem, expiry, rollback при ошибке session INSERT, replace code,
+revoke pending codes, concurrent revoke/redeem и изоляция пользователей.
+
 Ниже — матрица для дальнейших business use cases. Она не означает,
 что pipeline/source/destination уже реализованы или протестированы.
 TypeScript: `tsc -p extension/tsconfig.json` после установки toolchain; зафиксировать
@@ -34,7 +40,7 @@ TypeScript: `tsc -p extension/tsconfig.json` после установки toolc
 | Delivery crash | Crash до send, после send до DB commit, delayed response, native key replay; unknown не вызывает слепой retry |
 | Target creation | Потеря ответа create, повторный import, rename источника; не создаёт второй target |
 | Queue | Реальный PostgreSQL: concurrent SKIP LOCKED, lease expiry/renew, stale generation, max attempts, backoff, rollback |
-| Ownership | Cross-user capture/target/item/job/callback, украденный code без verifier, expired/reused pairing, session revoke, Telegram update replay |
+| Ownership | Cross-user capture/target/item/job/callback, утечка bearer code (threat model ADR-0010), expired/reused pairing, session revoke, Telegram update replay |
 | Cancellation | Новые sends останавливаются; завершённые остаются; in-flight unknown reconciliation продолжается |
 | Data safety | DTO запрещает unknown fields/oversize/URLs; логи без credentials/raw content; SSRF отсутствует |
 | Migration | Чистая БД → schema; upgrade с предыдущей версии; constraints/FK/indexes; проверяемый rollback или forward repair |

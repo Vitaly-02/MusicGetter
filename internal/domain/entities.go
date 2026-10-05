@@ -16,6 +16,7 @@ type ExtensionPairing struct {
 	ChallengeHash []byte
 	ExpiresAt     time.Time
 	ConsumedAt    *time.Time
+	RevokedAt     *time.Time
 	CreatedAt     time.Time
 }
 

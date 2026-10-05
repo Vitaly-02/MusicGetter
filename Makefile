@@ -36,3 +36,8 @@ docker-up:
 # Preserve the database volume. Destructive deletion is a separate manual action.
 docker-down:
 	$(COMPOSE) down
+
+.PHONY: bot
+bot:
+	$(GO) build -o bin/bot ./cmd/bot
+	./bin/bot

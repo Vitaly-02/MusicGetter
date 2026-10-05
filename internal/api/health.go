@@ -42,8 +42,11 @@ func (h *Health) Ready(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
-func NewHandler(logger *slog.Logger, health *Health, requestTimeout time.Duration) http.Handler {
+func NewHandler(logger *slog.Logger, health *Health, requestTimeout time.Duration, routes ...func(*http.ServeMux)) http.Handler {
 	mux := http.NewServeMux()
+	for _, register := range routes {
+		register(mux)
+	}
 	mux.HandleFunc("/health/live", getOnly(func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "live"})
 	}))
