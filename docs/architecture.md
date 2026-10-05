@@ -1,6 +1,7 @@
 # Архитектура MusicGetter
 
-Статус: принятые границы и проект контрактов. Реализация отсутствует.
+Статус: принятые границы и проект контрактов; реализован bootstrap backend.
+Импорт и интеграции остаются проектом. Детали bootstrap — ADR-0008 и README.
 
 ## Поток данных
 
@@ -30,17 +31,24 @@ flowchart TD
 ├── AGENTS.md
 ├── README.md
 ├── LICENSE
-├── go.mod
+├── go.mod / go.sum
+├── Makefile
+├── compose.yaml
+├── .env.example
 ├── cmd/
-│   ├── server/                 # будущая сборка HTTP API
+│   ├── server/                 # рабочий bootstrap HTTP API
+│   ├── migrate/                # отдельный migration runner
 │   ├── bot/                    # управляющий Telegram bot
 │   └── worker/                 # отдельный процесс import jobs
 ├── internal/
+│   ├── app/                    # wiring и lifecycle сервера
+│   ├── config/                 # environment configuration
+│   ├── logging/                # JSON slog, context logger
 │   ├── domain/model.go         # значения, состояния, metadata
 │   ├── import/contracts.go     # ingestion, leases; package importer
 │   ├── matcher/contracts.go    # catalog и versioned matching policy
 │   ├── destination/contracts.go
-│   ├── storage/postgres/       # pgx + будущие SQL repositories
+│   ├── storage/postgres/       # pool, readiness, Goose; repositories позже
 │   ├── api/                    # transport, auth, DTO validation
 │   └── telegram/               # handlers управляющего бота
 ├── extension/
@@ -52,14 +60,14 @@ flowchart TD
 │           ├── spotify/
 │           ├── yandex/
 │           └── vk/
-├── migrations/README.md
+├── migrations/                # embedded Goose SQL + README
 ├── docs/
 │   ├── architecture.md
 │   ├── database.md
 │   ├── protocol.md
 │   ├── verification.md
-│   └── adr/                    # 0001–0007 + индекс
-└── deploy/                     # конфигурация появится с executable services
+│   └── adr/                    # 0001–0008 + индекс
+└── deploy/Dockerfile           # server и migrate, runtime без root
 ```
 
 Пустые каталоги закреплены .gitkeep. cmd/worker добавлен, чтобы масштабирование
@@ -72,8 +80,8 @@ flowchart TD
 в cmd. Domain не импортирует infrastructure. `import` — имя каталога, `importer` —
 имя Go package (import является ключевым словом).
 
-Go modules, net/http, slog; pgx будет добавлен с PostgreSQL implementation.
-Сейчас module не содержит внешних зависимостей. sqlc отложен до реальных запросов.
+Go 1.27.1, Go modules, net/http, slog, pgxpool и Goose Provider для миграций.
+Прямые зависимости — pgx и Goose; sqlc отложен до реальных business queries.
 TypeScript toolchain/lockfile и MV3 manifest появятся с первой реализацией extension.
 
 ## Извлечение из DOM
@@ -219,4 +227,5 @@ graceful shutdown с прекращением claim и завершением/о
   effort. Нужны ли повторы/точный порядок — отдельное продуктовое решение.
 - DOM selectors и признаки полного обхода ещё нужно проверить на реальных страницах.
 - Пороги matcher, длительности leases, retention/quotas, hosting, поддерживаемые
-  версии browser/Go/PostgreSQL требуют реализации и измерений.
+  версии browser требуют реализации и измерений. Bootstrap использует Go 1.27.1
+  и PostgreSQL 17 в Compose; integration suite также проверен на локальном PostgreSQL 14.

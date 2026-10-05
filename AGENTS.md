@@ -3,8 +3,9 @@
 ## Область действия и стадия
 Эти правила применяются ко всему monorepo. Перед работой прочитайте
 `docs/architecture.md`, `docs/database.md`, `docs/verification.md` и ADR в
-`docs/adr/`. Сейчас оформлен архитектурный каркас: бизнес-логика, исполняемые
-сервисы, реальные source/destination adapters и миграции ещё не реализованы.
+`docs/adr/`. Реализован bootstrap HTTP backend и отдельная команда SQL migrations.
+Бизнес-логика импорта, worker/bot runtime и реальные source/destination adapters
+ещё не реализованы.
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
 границы очередной задачи; изменение принятого решения отражайте в ADR.
 
@@ -51,7 +52,9 @@
 ## Проверка изменений
 - При реализации важных решений добавлять поведенческие тесты, включая сбои
   и concurrency; матрица в docs/verification.md. Не подменять их тестами заглушек.
-- Go: gofmt, go test ./..., go vet ./...; TypeScript: npm ci && npm run typecheck
+- Go: make test, make lint; изменения pool/migrations дополнительно проверять
+  make test-integration с TEST_DATABASE_URL локального PostgreSQL.
+  TypeScript: npm ci && npm run typecheck
   в extension после появления lockfile/toolchain. Проверять DOM adapters на
   обезличенных rendered-DOM fixtures без сетевых запросов к стримингам.
 - Не добавлять основную логику, реальные credentials или рабочую интеграцию

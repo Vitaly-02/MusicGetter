@@ -1,8 +1,15 @@
 # Проверки и критерии при реализации
 
-Сейчас есть только декларации типов: `go test ./...` проверяет компиляцию,
-`go vet ./...` — статические ошибки. Поведенческие тесты не созданы, так как
-основная логика не реализована. Не считать этот документ выполненными тестами.
+Bootstrap проверяется `make test` (race detector, без внешней БД), `make lint`
+и `make test-integration` с TEST_DATABASE_URL. Реализованы проверки environment
+validation, JSON logging, request ID, recovery, health errors/deadlines, context
+propagation, graceful drain и forced close. Integration suite на реальном PostgreSQL
+создаёт изолированные БД и проверяет up/replay/down, concurrent migration lock,
+transactional rollback, DROP RESTRICT, pool и query cancellation. Сборка SQL в
+бинарник и expected schema version связаны отдельным unit test.
+
+Ниже — матрица для ещё не реализованных business use cases. Она не означает,
+что pipeline/source/destination уже реализованы или протестированы.
 TypeScript: `tsc -p extension/tsconfig.json` после установки toolchain; зафиксировать
 версии и lockfile с первым package.json. MV3 runtime/build пока не существует.
 

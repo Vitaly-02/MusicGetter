@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.env
+.env.*
+bin
+build
+tmp
+**/node_modules
+**/dist
+coverage
+*.log
+extension

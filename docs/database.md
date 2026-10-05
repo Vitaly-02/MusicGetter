@@ -1,6 +1,7 @@
 # PostgreSQL: логическая схема
 
-Это проект схемы, не применённые DDL/migrations. Все ID — UUID, времена — timestamptz
+Ниже проект domain-схемы, пока не реализованный в DDL. Bootstrap migration
+создаёт только namespace `musicgetter`; Goose ведёт `public.goose_db_version`. Все ID — UUID, времена — timestamptz
 в UTC, source/kind/status — text с CHECK. Счётчики и позиции — bigint. У каждого
 владельческого ресурса owner_id; связи между ними должны включать owner_id в
 составных FK или обеспечиваться эквивалентной транзакционной проверкой. Одной
