@@ -4,22 +4,15 @@ package postgres_test
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"io"
 	"log/slog"
 	"net/http/httptest"
-	"net/url"
-	"os"
-	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"musicgetter/internal/api"
-	"musicgetter/internal/config"
 	"musicgetter/internal/logging"
 	"musicgetter/internal/storage/postgres"
 	"musicgetter/migrations"
@@ -95,14 +88,19 @@ func TestFailedMigrationRollsBack(t *testing.T) {
 	if err := postgres.Migrate(ctx, cfg, migrations.FS, "up"); err != nil {
 		t.Fatal(err)
 	}
-	base, err := migrations.FS.ReadFile("00001_bootstrap.sql")
+	files := fstest.MapFS{}
+	entries, err := migrations.FS.ReadDir(".")
 	if err != nil {
 		t.Fatal(err)
 	}
-	files := fstest.MapFS{
-		"00001_bootstrap.sql": &fstest.MapFile{Data: base},
-		"00002_failure.sql":   &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE musicgetter.rollback_probe (id int);\nSELECT missing_migration_function();\n-- +goose Down\nDROP TABLE musicgetter.rollback_probe;\n")},
+	for _, entry := range entries {
+		data, err := migrations.FS.ReadFile(entry.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		files[entry.Name()] = &fstest.MapFile{Data: data}
 	}
+	files["00005_failure.sql"] = &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE TABLE musicgetter.rollback_probe (id int);\nSELECT missing_migration_function();\n-- +goose Down\nDROP TABLE musicgetter.rollback_probe;\n")}
 	if err := postgres.Migrate(ctx, cfg, files, "up"); err == nil {
 		t.Fatal("expected migration failure")
 	}
@@ -118,75 +116,33 @@ func TestFailedMigrationRollsBack(t *testing.T) {
 	if err := postgres.Ready(ctx, pool); err != nil {
 		t.Fatal("version changed after rollback:", err)
 	}
-	// Future contents must not be silently dropped by the bootstrap down migration.
+}
+
+func TestBootstrapDownRestrictsUnknownObjects(t *testing.T) {
+	cfg := isolatedDatabase(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	base, err := migrations.FS.ReadFile("00001_bootstrap.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files := fstest.MapFS{"00001_bootstrap.sql": &fstest.MapFile{Data: base}}
+	if err := postgres.Migrate(ctx, cfg, files, "up"); err != nil {
+		t.Fatal(err)
+	}
+	pool, err := postgres.Open(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pool.Close()
 	if _, err := pool.Exec(ctx, "CREATE TABLE musicgetter.preserve_me (id int)"); err != nil {
 		t.Fatal(err)
 	}
-	if err := postgres.Migrate(ctx, cfg, migrations.FS, "down"); err == nil {
+	if err := postgres.Migrate(ctx, cfg, files, "down"); err == nil {
 		t.Fatal("unsafe schema drop succeeded")
 	}
-	if err := postgres.Ready(ctx, pool); err != nil {
-		t.Fatal("failed down changed version:", err)
+	var version int
+	if err := pool.QueryRow(ctx, "SELECT max(version_id) FROM public.goose_db_version").Scan(&version); err != nil || version != 1 {
+		t.Fatal("failed down changed version", version, err)
 	}
-}
-
-// Tests create and drop only randomly named databases, never the supplied database.
-// The test role needs CREATEDB; explicit opt-in avoids accidental production use.
-func isolatedDatabase(t *testing.T) config.Database {
-	t.Helper()
-	dsn := os.Getenv("TEST_DATABASE_URL")
-	if dsn == "" {
-		t.Fatal("TEST_DATABASE_URL is required with -tags=integration (use a local role with CREATEDB)")
-	}
-	parsed, err := pgx.ParseConfig(dsn)
-	if err != nil {
-		t.Fatal("invalid TEST_DATABASE_URL")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	admin, err := pgx.ConnectConfig(ctx, parsed)
-	if err != nil {
-		t.Fatal("cannot connect to integration database")
-	}
-	var random [8]byte
-	_, _ = rand.Read(random[:])
-	name := "musicgetter_test_" + hex.EncodeToString(random[:])
-	identifier := pgx.Identifier{name}.Sanitize()
-	if _, err := admin.Exec(ctx, "CREATE DATABASE "+identifier); err != nil {
-		_ = admin.Close(ctx)
-		t.Fatal("cannot create integration database (CREATEDB required)")
-	}
-	t.Cleanup(func() {
-		cleanupCtx, stop := context.WithTimeout(context.Background(), 10*time.Second)
-		defer stop()
-		defer admin.Close(cleanupCtx)
-		if _, err := admin.Exec(cleanupCtx, "DROP DATABASE "+identifier+" WITH (FORCE)"); err != nil {
-			t.Error("cannot clean up integration database", name)
-		}
-	})
-	// ConnConfig.ConnString returns the ORIGINAL string, not edited fields.
-	// Rewrite the DSN explicitly and verify it before returning it to migrations.
-	isolatedDSN := dsn + " dbname=" + name
-	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
-		u, err := url.Parse(dsn)
-		if err != nil {
-			t.Fatal("invalid integration database URL")
-		}
-		u.Path, u.RawPath = "/"+name, ""
-		query := u.Query()
-		query.Del("dbname")
-		query.Del("database")
-		u.RawQuery = query.Encode()
-		isolatedDSN = u.String()
-	}
-	probe, err := pgx.Connect(ctx, isolatedDSN)
-	if err != nil {
-		t.Fatal("cannot connect to isolated database")
-	}
-	defer probe.Close(ctx)
-	var actual string
-	if err := probe.QueryRow(ctx, "SELECT current_database()").Scan(&actual); err != nil || actual != name {
-		t.Fatal("integration database isolation failed")
-	}
-	return config.Database{URL: isolatedDSN, MaxConns: 3, ConnectTimeout: 3 * time.Second, MaxConnLifetime: time.Hour, MaxConnIdleTime: time.Minute}
 }

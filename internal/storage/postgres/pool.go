@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
 	"musicgetter/internal/config"
 )
 

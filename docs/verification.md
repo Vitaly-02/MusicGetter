@@ -8,7 +8,16 @@ propagation, graceful drain и forced close. Integration suite на реальн
 transactional rollback, DROP RESTRICT, pool и query cancellation. Сборка SQL в
 бинарник и expected schema version связаны отдельным unit test.
 
-Ниже — матрица для ещё не реализованных business use cases. Она не означает,
+Domain/persistence: golden fingerprint, Unicode/artist-order invariance, сохранение
+recording distinctions, missing ID fallback, direct SQL UNIQUE/FK constraints,
+concurrent Ensure/AddItem/Reserve, cross-owner/profile/connection, pairing proofs/
+expiration/single consume, keyset pagination и transaction composition rollback.
+JobRepository: concurrent claim, lease expiry/renew/reclaim, fencing, retry budget,
+delayed availability и reconciliation после cancelled import. Migration tests
+проверяют upgrade с версии 2, сохранение User, полный down до 0 и повторный up.
+Все интеграционные проверки используют изолированные БД PostgreSQL.
+
+Ниже — матрица для дальнейших business use cases. Она не означает,
 что pipeline/source/destination уже реализованы или протестированы.
 TypeScript: `tsc -p extension/tsconfig.json` после установки toolchain; зафиксировать
 версии и lockfile с первым package.json. MV3 runtime/build пока не существует.
@@ -19,7 +28,7 @@ TypeScript: `tsc -p extension/tsconfig.json` после установки toolc
 | Virtualized DOM | Повторный render, перестановка/удаление nodes, missing metadata, смена страницы и abort; неизвестный конец всегда partial |
 | Outbox | Worker restart, offline, ACK loss, quota full; неизменные sequence/payload, bounded memory |
 | Приём | Replay same payload, conflict different payload, out-of-order, дырки, пустой capture, concurrent Append/Seal, duplicate Seal |
-| Source identity | Одинаковые title/artist разных записей не сливаются; provisional keys не переносятся между captures; account/profile mismatch показывается пользователю |
+| Source identity | Одинаковые title/artist разных записей не сливаются; fallback identity не считается доказательством match между captures; account/profile mismatch показывается пользователю |
 | Matching | Cover/live/remaster, разные artists/duration/album, Unicode, пустой поиск и близкие scores; ambiguity не выбирается молча; policy version сохранена |
 | Idempotency | Повторный импорт, два source на один destination ID, два worker на один target, существующий remote track; membership остаётся одна |
 | Delivery crash | Crash до send, после send до DB commit, delayed response, native key replay; unknown не вызывает слепой retry |

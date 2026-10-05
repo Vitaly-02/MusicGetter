@@ -1,7 +1,7 @@
 # Архитектура MusicGetter
 
-Статус: принятые границы и проект контрактов; реализован bootstrap backend.
-Импорт и интеграции остаются проектом. Детали bootstrap — ADR-0008 и README.
+Статус: принятые границы и проект контрактов; реализованы bootstrap backend, domain model и PostgreSQL repositories.
+Импорт и интеграции остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md.
 
 ## Поток данных
 
@@ -44,11 +44,11 @@ flowchart TD
 │   ├── app/                    # wiring и lifecycle сервера
 │   ├── config/                 # environment configuration
 │   ├── logging/                # JSON slog, context logger
-│   ├── domain/model.go         # значения, состояния, metadata
+│   ├── domain/                 # entities, states, metadata, fingerprint v1
 │   ├── import/contracts.go     # ingestion, leases; package importer
 │   ├── matcher/contracts.go    # catalog и versioned matching policy
 │   ├── destination/contracts.go
-│   ├── storage/postgres/       # pool, readiness, Goose; repositories позже
+│   ├── storage/postgres/       # pool, readiness, Goose и domain repositories
 │   ├── api/                    # transport, auth, DTO validation
 │   └── telegram/               # handlers управляющего бота
 ├── extension/
@@ -66,7 +66,7 @@ flowchart TD
 │   ├── database.md
 │   ├── protocol.md
 │   ├── verification.md
-│   └── adr/                    # 0001–0008 + индекс
+│   └── adr/                    # 0001–0009 + индекс
 └── deploy/Dockerfile           # server и migrate, runtime без root
 ```
 
@@ -81,7 +81,8 @@ flowchart TD
 имя Go package (import является ключевым словом).
 
 Go 1.27.1, Go modules, net/http, slog, pgxpool и Goose Provider для миграций.
-Прямые зависимости — pgx и Goose; sqlc отложен до реальных business queries.
+Прямые зависимости — pgx, Goose и golang.org/x/text для Unicode normalization;
+sqlc пока не добавлен, SQL repositories небольшие и явные.
 TypeScript toolchain/lockfile и MV3 manifest появятся с первой реализацией extension.
 
 ## Извлечение из DOM
@@ -101,8 +102,9 @@ TypeScript toolchain/lockfile и MV3 manifest появятся с первой �
 локально: сохраняется только разрешённый идентификатор/путь без query и fragment.
 Если такой ссылки нет — provisional key из metadata с явной неопределённостью.
 Нельзя объединять разные записи только по title/artist. Одинаковые наблюдения
-можно сжать внутри capture, но ненадёжная идентичность не переносится автоматически
-между captures. Для записей с provisional identity возможна ручная проверка.
+можно сжать внутри capture, но fingerprint не доказывает тождественность аудиозаписи. По ADR-0009 canonical
+metadata identity переиспользуется внутри profile между imports; provisional
+mapping требует повторной проверки перед автоматическим принятием совпадения.
 
 Каждый capture относится к одной коллекции и выбранному source profile. Полный
 импорт библиотеки — несколько captures коллекций, а не один огромный payload.
@@ -161,8 +163,8 @@ matched включает ожидание ensure/reconcile, pending — поис
 - Опциональные `MembershipReader`, `OperationReconciler`, `TargetManager`.
 
 Контракты приведены в .go/.ts; это compile-time границы, не готовый wire protocol.
-Transport DTO не сериализуются напрямую из domain structs. DB repositories для
-конкретных use cases определяются при реализации, универсального CRUD Store нет.
+Transport DTO не сериализуются напрямую из domain structs. DB repositories реализованы отдельно по ролям и принимают pgxpool или pgx.Tx;
+универсального CRUD Store нет. Импортный HTTP flow пока не подключён.
 
 ## Идемпотентность и внешние эффекты
 

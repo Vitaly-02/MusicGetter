@@ -8,7 +8,7 @@ import (
 )
 
 type Capabilities struct {
-	TargetKinds            []domain.CollectionKind
+	TargetKinds            []domain.DestinationCollectionKind
 	Search                 bool
 	NativeIdempotency      bool
 	AtomicEnsureMembership bool
@@ -57,7 +57,7 @@ type OperationReconciler interface {
 
 type CreateTargetRequest struct {
 	OperationKey string
-	Kind         domain.CollectionKind
+	Kind         domain.DestinationCollectionKind
 	Title        string
 }
 

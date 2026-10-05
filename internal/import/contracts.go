@@ -38,20 +38,12 @@ type Ingestion interface {
 	Seal(context.Context, SealCapture) (domain.ID, error)
 }
 
-type JobLease struct {
-	JobID      domain.ID
-	ImportID   domain.ID
-	Kind       string
-	Generation int64
-	ExpiresAt  time.Time
-}
-
 // Every mutation is conditional on the current, unexpired lease generation.
-// Claim commits its short transaction before any external work starts.
+// Claim must run in a short transaction committed before any external work starts.
 type JobQueue interface {
-	Claim(ctx context.Context, worker string, limit int, lease time.Duration) ([]JobLease, error)
-	Renew(context.Context, JobLease, time.Duration) (JobLease, error)
-	Complete(context.Context, JobLease) error
-	Retry(ctx context.Context, lease JobLease, availableAt time.Time, code string) error
-	Fail(ctx context.Context, lease JobLease, code string) error
+	Claim(ctx context.Context, worker string, limit int, lease time.Duration) ([]domain.ImportJob, error)
+	Renew(context.Context, domain.ImportJob, time.Duration) (domain.ImportJob, error)
+	Complete(context.Context, domain.ImportJob) error
+	Retry(ctx context.Context, lease domain.ImportJob, availableAt time.Time, code string) error
+	Fail(ctx context.Context, lease domain.ImportJob, code string) error
 }

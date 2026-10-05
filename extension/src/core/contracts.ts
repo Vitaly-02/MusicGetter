@@ -1,6 +1,6 @@
 /** Rendered DOM only. These types are not runtime input validation. */
 export type Source = "spotify" | "yandex" | "vk";
-export type CollectionKind = "favorites" | "playlist" | "album";
+export type CollectionKind = "favorites" | "playlist" | "album" | "selection";
 
 export interface SourceKey {
   key: string;

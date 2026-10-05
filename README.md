@@ -5,7 +5,8 @@ Monorepo для переноса музыкальных коллекций из 
 
 Реализован bootstrap Go backend: environment configuration, PostgreSQL pool,
 SQL migrations, HTTP health endpoints, JSON slog, request ID, recovery и graceful
-shutdown. Импорт, Telegram integrations и extension runtime пока не реализованы.
+shutdown. Добавлены domain model, PostgreSQL repositories и schema version 4.
+Исполнение импорта, Telegram integrations и extension runtime пока не реализованы.
 Расширение будет читать только доступный пользователю rendered DOM; API стримингов,
 перехват запросов и передача их credentials запрещены.
 
@@ -101,7 +102,25 @@ make test-integration
 production URL. Без TEST_DATABASE_URL команда integration завершается ошибкой,
 а не молча пропускает проверки. Проверяются migrations up/replay/down, конкурентный
 migration lock, SQL rollback, pool и отмена запросов, readiness при недоступности
-БД/несовместимой схеме. Lifecycle tests используют настоящие локальные TCP listeners.
+БД/несовместимой схеме, domain constraints, concurrent deduplication, pairing,
+job leases/fencing и rollback составных операций. Lifecycle tests используют настоящие локальные TCP listeners.
+
+## Domain и БД
+
+Модели: User, ExtensionPairing, SourceCollection, Import, ImportItem, CanonicalTrack,
+DestinationTrack, TrackMapping, DestinationCollection, DestinationMembership,
+ImportJob; SourceProfile/DestinationConnection изолируют аккаунты. Source selection
+поддерживается отдельно от destination kinds.
+
+Fingerprint v1 вычисляется из нормализованных metadata при отсутствии source key.
+Уникальные ограничения блокируют повторный item и membership, в том числе при
+конкурентных вставках. Reserved membership не подтверждает удалённую отправку;
+worker и destination integration ещё не реализованы.
+
+[Схема, ограничения, repositories и границы fingerprint](docs/database.md).
+Применить новые миграции локально: `make migrate-up`; обновить Docker backend и
+его встроенные SQL migrations: `make docker-up`. Откат domain migrations удаляет
+данные и требует backup; integration tests выполняют его только в отдельной БД.
 
 ## Конфигурация
 

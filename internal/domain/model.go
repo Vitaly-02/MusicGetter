@@ -1,4 +1,4 @@
-// Package domain contains transport-independent contracts, not implementations.
+// Package domain contains transport-independent entities and identity rules.
 package domain
 
 import "time"
@@ -12,12 +12,12 @@ const (
 	SourceVK      Source = "vk"
 )
 
-type CollectionKind string
+type DestinationCollectionKind string
 
 const (
-	CollectionFavorites CollectionKind = "favorites"
-	CollectionPlaylist  CollectionKind = "playlist"
-	CollectionAlbum     CollectionKind = "album"
+	CollectionFavorites DestinationCollectionKind = "favorites"
+	CollectionPlaylist  DestinationCollectionKind = "playlist"
+	CollectionAlbum     DestinationCollectionKind = "album"
 )
 
 // SourceRef is scoped to a user-owned source profile, never a streaming credential.
@@ -48,12 +48,6 @@ type CollectionItem struct {
 	Position int64
 }
 
-type SourceCollection struct {
-	Ref   SourceRef
-	Kind  CollectionKind
-	Title string
-}
-
 type CaptureState string
 
 const (
@@ -78,12 +72,7 @@ const (
 type Target struct {
 	ConnectionID ID
 	ExternalID   string
-	Kind         CollectionKind
-}
-
-type DestinationTrack struct {
-	ID       string
-	Metadata TrackMetadata
+	Kind         DestinationCollectionKind
 }
 
 type ImportProgress struct {

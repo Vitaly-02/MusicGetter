@@ -7,11 +7,12 @@ Runner — Goose Provider с pgx stdlib driver; SQL встроен через em
 Backend при запуске не меняет schema. Readiness проверяет expected version и namespace.
 
 Bootstrap `00001_bootstrap.sql` создаёт только пустую schema `musicgetter`;
-бизнес-таблицы из docs/database.md не реализованы. Migration history хранится в
-`public.goose_db_version`. Down использует DROP SCHEMA RESTRICT, поэтому при
+00002 создаёт accounts/collections, 00003 — tracks/mappings/memberships,
+00004 — imports/items/jobs. Текущая expected version — 4. Migration history хранится в
+`public.goose_db_version`. Down первой migration использует DROP SCHEMA RESTRICT, поэтому при
 наличии объектов не уничтожит их и оставит migration применённой.
 
-Новые миграции: последовательный `00002_name.sql`, секции `-- +goose Up` и
+Новые миграции: последовательный `00005_name.sql`, секции `-- +goose Up` и
 `-- +goose Down`. Изменять только ещё не применённые файлы; исправления — новой
 миграцией. Обновлять Version в embed.go. Goose выполняет каждую SQL migration
 в транзакции; session advisory lock сериализует migration runners. Lock wait
@@ -23,3 +24,9 @@ DDL с CREATE INDEX CONCURRENTLY потребует отдельного явн�
 Откаты с потерей данных не автоматизировать: backup/forward repair перед действием.
 Запускать make test-integration на PostgreSQL. Базовый down безопасен только для
 пустой schema; history table Goose после него остаётся для будущего up.
+
+Миграции 00002–00004 добавляют новые таблицы с UNIQUE и составными tenant FK.
+Их Down удаляет domain data; выполнять только после backup/остановки writers либо
+в изолированной тестовой БД. Предпочитать forward repair на рабочей базе. Отмена
+00004 не удаляет persistent memberships, но отмена 00003 удаляет ledger и может
+сделать последующий удалённый retry небезопасным без reconciliation.

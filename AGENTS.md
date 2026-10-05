@@ -3,7 +3,8 @@
 ## Область действия и стадия
 Эти правила применяются ко всему monorepo. Перед работой прочитайте
 `docs/architecture.md`, `docs/database.md`, `docs/verification.md` и ADR в
-`docs/adr/`. Реализован bootstrap HTTP backend и отдельная команда SQL migrations.
+`docs/adr/`. Реализованы bootstrap HTTP backend, domain model, PostgreSQL
+repositories и отдельная команда SQL migrations.
 Бизнес-логика импорта, worker/bot runtime и реальные source/destination adapters
 ещё не реализованы.
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
@@ -37,6 +38,8 @@
   повторяющихся запросов и реальной пользы. HTTP — net/http, логи — slog.
 - Минимум зависимостей. Redis/RabbitMQ пока не добавлять. Очередь — PostgreSQL,
   jobs + SELECT FOR UPDATE SKIP LOCKED, lease, fencing и ограниченные повторы.
+- Canonical fingerprint v1 и его limitations описаны в docs/database.md и ADR-0009.
+  Не менять normalization незаметно; не считать metadata fingerprint акустическим ID.
 - Идемпотентность обязательна на уровнях приёма batch, jobs и membership.
   Повторный импорт не добавляет существующий destination track в тот же target.
 - Не объявлять exactly-once внешнего эффекта без доказуемого механизма.
