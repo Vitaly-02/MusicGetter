@@ -1,0 +1,36 @@
+# Проверки и критерии при реализации
+
+Сейчас есть только декларации типов: `go test ./...` проверяет компиляцию,
+`go vet ./...` — статические ошибки. Поведенческие тесты не созданы, так как
+основная логика не реализована. Не считать этот документ выполненными тестами.
+TypeScript: `tsc -p extension/tsconfig.json` после установки toolchain; зафиксировать
+версии и lockfile с первым package.json. MV3 runtime/build пока не существует.
+
+| Решение | Обязательная проверка перед готовностью реализации |
+|---|---|
+| DOM-only | Обезличенные fixtures каждого source; network APIs бросают ошибку; hidden JSON/store не читаются; изоляция imports между adapters |
+| Virtualized DOM | Повторный render, перестановка/удаление nodes, missing metadata, смена страницы и abort; неизвестный конец всегда partial |
+| Outbox | Worker restart, offline, ACK loss, quota full; неизменные sequence/payload, bounded memory |
+| Приём | Replay same payload, conflict different payload, out-of-order, дырки, пустой capture, concurrent Append/Seal, duplicate Seal |
+| Source identity | Одинаковые title/artist разных записей не сливаются; provisional keys не переносятся между captures; account/profile mismatch показывается пользователю |
+| Matching | Cover/live/remaster, разные artists/duration/album, Unicode, пустой поиск и близкие scores; ambiguity не выбирается молча; policy version сохранена |
+| Idempotency | Повторный импорт, два source на один destination ID, два worker на один target, существующий remote track; membership остаётся одна |
+| Delivery crash | Crash до send, после send до DB commit, delayed response, native key replay; unknown не вызывает слепой retry |
+| Target creation | Потеря ответа create, повторный import, rename источника; не создаёт второй target |
+| Queue | Реальный PostgreSQL: concurrent SKIP LOCKED, lease expiry/renew, stale generation, max attempts, backoff, rollback |
+| Ownership | Cross-user capture/target/item/job/callback, украденный code без verifier, expired/reused pairing, session revoke, Telegram update replay |
+| Cancellation | Новые sends останавливаются; завершённые остаются; in-flight unknown reconciliation продолжается |
+| Data safety | DTO запрещает unknown fields/oversize/URLs; логи без credentials/raw content; SSRF отсутствует |
+| Migration | Чистая БД → schema; upgrade с предыдущей версии; constraints/FK/indexes; проверяемый rollback или forward repair |
+| Scale | 50 000 наблюдений, bounded batches; память не растёт пропорционально полной metadata библиотеки; keyset pages и resume без полного re-upload |
+
+Unit tests — normalization/policy/state transitions. Integration tests — pgx и
+настоящий PostgreSQL, не только mock repository. Contract tests — каждый destination
+против заявленных capabilities, включая preexisting memberships и uncertain effects.
+E2E — управляемые DOM fixtures + fake destination, без streaming API и реальных
+пользовательских credentials. Реальные страницы только ручная проверка доступного
+DOM по разрешению пользователя, без сохранения чувствительных данных.
+
+Нагрузочный baseline должен записывать объём данных, latency, RSS, число SQL
+queries, backlog drain rate и ограничение destination. Численные SLO определить
+после выбора хостинга/destination; не обещать throughput по одному benchmark.
