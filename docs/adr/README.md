@@ -19,3 +19,5 @@
 - [0013 — Yandex rendered DOM, виртуализация и конец коллекции](0013-yandex-rendered-dom.md)
 
 - [0014 — Spotify Web rendered DOM adapter](0014-spotify-rendered-dom.md)
+
+- [0015 — VK Music rendered DOM и коллекции в диалогах](0015-vk-rendered-dom.md)

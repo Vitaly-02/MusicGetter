@@ -8,8 +8,8 @@ repositories, отдельная команда SQL migrations, управляю
 и bot-issued pairing/extension sessions (ADR-0010), HTTP API приёма импорта
 чанками (ADR-0011, docs/openapi.json), MV3 extension foundation с popup, pairing
 и durable demo outbox (ADR-0012). Исполнение импорта, worker
-и реальные destination adapters ещё не реализованы. Yandex и Spotify DOM adapters реализованы
-и проверены на синтетических fixtures (ADR-0013/0014); VK — stub.
+и реальные destination adapters ещё не реализованы. Yandex, Spotify и VK DOM adapters реализованы
+и проверены на синтетических fixtures (ADR-0013/0014/0015).
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
 границы очередной задачи; изменение принятого решения отражайте в ADR.
 
@@ -78,8 +78,8 @@ repositories, отдельная команда SQL migrations, управляю
 ## Browser extension
 - TypeScript, MV3, Chrome first; Firefox-specific background manifest собирается отдельно.
 - Tokens только в extension-origin IndexedDB, никогда в content/page RPC или sync storage.
-- Content пока предоставляет page.info; Yandex/Spotify DOM adapters реализованы отдельно,
-  реальный capture ещё не подключён к durable outbox/popup. VK — stub.
+- Content пока предоставляет page.info; Yandex/Spotify/VK DOM adapters реализованы отдельно,
+  реальный capture ещё не подключён к durable outbox/popup.
   Synthetic DemoProducer не выдаётся за пользовательскую библиотеку.
 - MusicSourceAdapter.collectAllTracks — AsyncGenerator bounded batches; не Promise всей библиотеки.
 - Pending chunk сохраняется до POST, ACK проверяется до удаления. Worker restart не меняет key/body.

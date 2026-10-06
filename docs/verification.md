@@ -37,7 +37,7 @@ Unit tests покрывают byte/count bounds, ACK loss + worker restart, по
 cancel после uncertain create, logout race, owner/backend isolation, private status
 projection, strict metadata, API credential/redirect policy, retry budget и IndexedDB
 transactions через fake-indexeddb. Browser installation smoke пока ручной; Firefox
-runtime не объявляется проверенным только по успешной сборке. Yandex/Spotify DOM collectors проверяются на HTML fixtures: virtualized node reuse,
+runtime не объявляется проверенным только по успешной сборке. Yandex/Spotify/VK DOM collectors проверяются на HTML fixtures: virtualized node reuse,
 scroll overlap, hidden text, missing metadata/ID, unsafe URL, delayed rows,
 count/end/loading signals, cancel, SPA navigation/root replacement, bounded batches
 и observer cleanup. Геометрия viewport моделируется; live selectors вручную ещё
@@ -74,3 +74,7 @@ DOM по разрешению пользователя, без сохранен�
 Нагрузочный baseline должен записывать объём данных, latency, RSS, число SQL
 queries, backlog drain rate и ограничение destination. Численные SLO определить
 после выбора хостинга/destination; не обещать throughput по одному benchmark.
+
+VK fixtures дополнительно проверяют foreground dialog, query-only navigation,
+album list prerequisite, запрет data-audio/data-full-id и 1 200 виртуальных
+треков при трёх переиспользуемых DOM nodes. Это correctness, не benchmark.

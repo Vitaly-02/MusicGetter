@@ -2,7 +2,7 @@
 
 Статус: принятые границы и проект контрактов; реализованы bootstrap backend, domain model, PostgreSQL repositories, управляющий
 Telegram bot, собственные extension sessions и MV3 extension foundation
-с popup/pairing/durable demo outbox. Yandex/Spotify DOM adapters реализованы и проверены на fixtures (ADR-0013/0014); VK — stub.
+с popup/pairing/durable demo outbox. Yandex/Spotify/VK DOM adapters реализованы и проверены на fixtures (ADR-0013/0014/0015).
 Реальный DOM capture ещё не подключён к popup/outbox.
 Приём импорта реализован; worker/matcher и destination integration остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011, extension runtime — ADR-0012.
 
@@ -78,7 +78,7 @@ flowchart TD
 │   ├── database.md
 │   ├── protocol.md
 │   ├── verification.md
-│   └── adr/                    # 0001–0014 + индекс
+│   └── adr/                    # 0001–0015 + индекс
 └── deploy/Dockerfile           # server, migrate и bot, runtime без root
 ```
 

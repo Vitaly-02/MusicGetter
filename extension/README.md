@@ -65,7 +65,7 @@ origin самого расширения; content scripts работают в or
 
 ## Источники и демонстрация
 
-VK остаётся заглушкой; Yandex и Spotify DOM adapters реализованы и проверены
+Yandex, Spotify и VK DOM adapters реализованы и проверены
 на синтетических fixtures, см. разделы ниже. Stub возвращает supported=false,
 metadata=null и явную unsupported ошибку вместо фиктивного успешного сбора.
 Никаких source API, cookies, webRequest, XHR interception или hidden stores.
@@ -110,7 +110,7 @@ collectAllTracks возвращает **AsyncGenerator ограниченных 
 Promise всей библиотеки — для десятков тысяч треков.
 
 Каждый реальный adapter использует только видимый DOM и разрешённую прокрутку.
-Подключение Yandex/Spotify к content → background producer — отдельный этап:
+Подключение Yandex/Spotify/VK к content → background producer — отдельный этап:
 нужны документ/capture ID, подтверждение каждого пакета, backpressure и partial
 при потере документа. Текущий content bridge предоставляет только `page.info`;
 runtime передачи DOM-треков намеренно не объявлен готовым. Рабочий pipeline сейчас
@@ -203,3 +203,29 @@ Spotify ещё не проверен. Тесты: `npm test`, `npm run typecheck
 Как у Yandex, **запуск реального Spotify capture из popup/outbox ещё не подключён**;
 popup показывает detection, а кнопка импорта по-прежнему запускает только демо.
 Решения и ограничения: [ADR-0014](../docs/adr/0014-spotify-rendered-dom.md).
+
+## VK Music DOM adapter
+
+`src/sources/vk/adapter.ts` предоставляет VKAdapter/createAdapter с тем же
+MusicSourceAdapter: bounded collectAllTracks, onProgress и AbortSignal. Общий
+interface/domain не изменены. Selectors и вся VK-specific логика локальны.
+
+Поддержаны сохранённые треки `/audios:owner` и `/music` с видимой выбранной
+«Моя музыка»/«Сохранённые треки», playlists `/music/playlist/:owner_:id` и
+`/audio_playlist:owner_:id`, albums `/music/album/:owner_:id` с видимым списком.
+Playlist, который UI явно помечает «Альбом», тоже распознаётся как album.
+Карточка/обложка без track list — unsupported.
+
+UI может открывать playlist в dialog через `?z=audio_playlist...`. Адаптер
+выбирает только передний dialog, не фоновые треки. Query-only смена коллекции
+останавливает проход. Share/access suffix и query не включаются в metadata URL.
+Не читаются data-audio/data-full-id, hidden state, cookies, storage или network.
+Отдельные artists берутся из ссылок; plain-text performers не делится по запятым.
+
+Virtualized/infinite traversal идёт с начала списка с перекрытием; dedup хранит
+компактные ID/digest, batches ограничены. Неподтверждённый конец/ID-less metadata
+дают partial. Fixtures `tests/fixtures/vk/` синтетические; live UI не проверен.
+Tests включают 1 200 виртуальных треков при трёх DOM nodes.
+
+**Реальный capture VK из popup/outbox ещё не подключён**, как Spotify/Yandex;
+кнопка импорта пока запускает demo. Детали: [ADR-0015](../docs/adr/0015-vk-rendered-dom.md).

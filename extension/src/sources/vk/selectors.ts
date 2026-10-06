@@ -1,0 +1,21 @@
+/** VK UI contracts: legacy audio rows and explicit modern test IDs. No application data attributes. */
+export const selectors = {
+  page: '.audio_page, [data-testid="music-page"]',
+  dialog: '[role="dialog"], .audio_layer',
+  list: '.audio_page__audio_rows_list, .audio_page__audio_rows, .audio_pl__audio_list, [data-testid="music-track-list"]',
+  row: '.audio_row, [data-testid="music-track"]',
+  title: '.audio_row__title_inner, [data-testid="music-track-title"]',
+  artist: '.audio_row__performers a, [data-testid="music-track-artists"] a',
+  artistText: '.audio_row__performers, [data-testid="music-track-artists"]',
+  album: '.audio_row__album, [data-testid="music-track-album"]',
+  version: '.audio_row__title .audio_row__version, [data-testid="music-track-version"]',
+  duration: '.audio_row__duration, [data-testid="music-track-duration"]',
+  heading: 'h1, .audio_pl__title, .audio_page__title, [data-testid="music-collection-title"]',
+  kind: '.audio_pl__type, [data-testid="music-collection-type"]',
+  activeTab: '[aria-current="page"], .audio_page__tab_current',
+  count: '.audio_page__count, .audio_pl__count, [data-testid="music-track-count"]',
+  end: '.audio_page__list_end, [data-testid="music-list-end"]',
+  busy: '[aria-busy="true"], [role="progressbar"], .audio_loading, [data-testid="music-loading"]',
+  excluded: 'aside, .audio_recoms, .audio_player, [data-testid="music-recommendations"], [data-testid="music-player"], [data-testid="music-queue"]',
+  link: 'a[href]',
+} as const;
