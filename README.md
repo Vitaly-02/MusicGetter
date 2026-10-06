@@ -5,7 +5,8 @@ Monorepo для переноса музыкальных коллекций из 
 
 Реализован bootstrap Go backend: environment configuration, PostgreSQL pool,
 SQL migrations, HTTP health endpoints, JSON slog, request ID, recovery и graceful
-shutdown. Добавлены domain model, PostgreSQL repositories и schema version 5. Работают управляющий Telegram bot и pairing/extension sessions.
+shutdown. Добавлены domain model, PostgreSQL repositories и schema version 6. Работают управляющий Telegram bot, pairing/extension sessions
+и HTTP API для приёма импорта чанками.
 Исполнение импорта, музыкальный destination и extension runtime пока не реализованы.
 Расширение будет читать только доступный пользователю rendered DOM; API стримингов,
 перехват запросов и передача их credentials запрещены.
@@ -109,9 +110,9 @@ docker compose --profile bot down
 | `/settings` | Число активных sessions и кнопка отзыва всех подключений |
 
 Команды и callbacks работают только в личном чате владельца. Код из `/connect`
-вводится в расширение; backend принимает `POST /v1/pairings/redeem` с JSON
+вводится в расширение; backend принимает `POST /v1/pair/claim` с JSON
 `{"code":"..."}` и возвращает собственный bearer token один раз. Сессия действует
-30 дней; проверка через `GET /v1/extension/session` с Authorization: Bearer.
+30 дней; проверка через `GET /v1/me` с Authorization: Bearer.
 В БД хранятся только SHA-256 hashes. Отзыв из settings закрывает sessions и pending
 codes. Подробные DTO и статусы — [протокол](docs/protocol.md).
 
@@ -176,12 +177,38 @@ worker и destination integration ещё не реализованы.
 его встроенные SQL migrations: `make docker-up`. Откат domain migrations удаляет
 данные и требует backup; integration tests выполняют его только в отдельной БД.
 
+## API расширения
+
+[OpenAPI 3.1.1](docs/openapi.json) · [Запросы и сценарии retry](docs/extension-api.md).
+
+Реализованы `POST /v1/pair/claim`, `GET /v1/me`, `GET /v1/destinations`,
+`POST /v1/imports`, `POST /v1/imports/{id}/tracks`, `/complete`, `/cancel`
+и `GET /v1/imports/{id}`. Все, кроме claim, требуют собственного Bearer token.
+
+Чанки: 1–200 tracks, максимум 512 KiB. `client_request_id` дедуплицирует создание,
+`idempotency_key` + sequence + server digest — повтор чанка. Complete проверяет
+непрерывность чанков и создаёт jobs; worker пока не исполняется. До complete import
+остаётся collecting. GET status возвращает счётчики, без выгрузки всей библиотеки.
+
+В `.env` задайте `EXTENSION_ORIGINS` точными origins установленных расширений.
+Пустой список запрещает все запросы с Origin; без Origin запросы допустимы при
+Bearer authentication. Cookies/source credentials/unknown JSON fields отклоняются.
+Лимиты по IP, owner и claim — на процесс; 429 возвращает Retry-After. За proxy
+X-Forwarded-For не доверяется. Production transport — HTTPS.
+
+`GET /v1/destinations` читает сохранённые пользовательские collections. У нового
+пользователя список пуст: реальный destination/provisioning ещё не подключён.
+Миграции и обновление Docker: `make docker-up`. Спецификацию дополнительно можно
+проверить `uvx --from openapi-spec-validator openapi-spec-validator docs/openapi.json`.
+
 ## Конфигурация
 
 | Environment variable | Default | Назначение |
 |---|---|---|
 | TELEGRAM_BOT_TOKEN | обязательно для bot | Токен нашего управляющего бота из BotFather |
 | DATABASE_URL | обязательно | PostgreSQL URL/DSN; production TLS настраивается здесь |
+| EXTENSION_ORIGINS | пусто | Exact comma-separated chrome-extension/moz-extension origins для CORS |
+| API_IP_PER_MINUTE / API_OWNER_PER_MINUTE / API_CLAIM_PER_MINUTE | 120 / 60 / 5 | Fixed-minute rate limits на процесс, диапазон 1..10000 |
 | HTTP_ADDR | :8080 | Адрес listener на хосте |
 | LOG_LEVEL | info | debug/info/warn/error, JSON в stdout |
 | DB_MAX_CONNS / DB_MIN_CONNS | 10 / 0 | Лимиты пула, min <= max |
@@ -209,7 +236,7 @@ HTTP_WRITE_TIMEOUT`. Compose ждёт остановку 30s: при увели�
 - Ошибка: `{"error":{"code":"not_ready","message":"Service is not ready"},"requestId":"..."}`.
 - X-Request-ID принимается только из 1–64 ASCII букв/цифр/`-`/`_`, иначе генерируется.
   Он передаётся в response header, context и request logger; это correlation,
-  а не authentication. Bearer authorization реализована для extension/session.
+  а не authentication. Bearer authorization реализована для всех endpoints расширения, кроме claim.
 - Логи содержат status/duration/request ID; URL query, DSN и panic values исключены.
   Recovery до отправки ответа возвращает JSON 500; после частичного ответа
   прерывает connection/stream, не дописывая JSON к успешному payload.
@@ -220,6 +247,8 @@ HTTP_WRITE_TIMEOUT`. Compose ждёт остановку 30s: при увели�
 - [Сущности и ограничения БД](docs/database.md)
 - [Миграции](migrations/README.md)
 - [Протокол приёма и привязка](docs/protocol.md)
+- [Extension API и retry](docs/extension-api.md)
+- [OpenAPI](docs/openapi.json)
 - [Проверки](docs/verification.md)
 - [ADR](docs/adr/README.md)
 - [Правила разработки](AGENTS.md)

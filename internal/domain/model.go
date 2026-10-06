@@ -60,6 +60,7 @@ const (
 type ImportState string
 
 const (
+	ImportCollecting          ImportState = "collecting"
 	ImportQueued              ImportState = "queued"
 	ImportRunning             ImportState = "running"
 	ImportNeedsAttention      ImportState = "needs_attention"

@@ -12,6 +12,10 @@ import (
 )
 
 type Config struct {
+	ExtensionOrigins  []string
+	APIIPPerMinute    int
+	APIOwnerPerMinute int
+	APIClaimPerMinute int
 	HTTPAddr          string
 	LogLevel          slog.Level
 	Database          Database
@@ -111,6 +115,9 @@ func load(lookup func(string) (string, bool)) (Config, error) {
 	}
 	if c.HealthTimeout > c.RequestTimeout || c.RequestTimeout >= c.WriteTimeout {
 		return Config{}, fmt.Errorf("timeouts must satisfy HEALTH_TIMEOUT <= HTTP_REQUEST_TIMEOUT < HTTP_WRITE_TIMEOUT")
+	}
+	if err := c.loadExtension(get); err != nil {
+		return Config{}, err
 	}
 	return c, nil
 }

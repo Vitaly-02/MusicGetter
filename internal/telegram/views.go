@@ -56,7 +56,7 @@ func (h *Handler) playlists(ctx context.Context, owner domain.ID, cursor string)
 	return strings.Join(lines, "\n"), k, false, nil
 }
 func state(value string) string {
-	names := map[string]string{"queued": "в очереди", "running": "в работе", "needs_attention": "нужно ваше решение", "completed": "завершён", "completed_with_errors": "завершён с ошибками", "cancelled": "отменён", "failed": "ошибка"}
+	names := map[string]string{"collecting": "приём треков", "queued": "в очереди", "running": "в работе", "needs_attention": "нужно ваше решение", "completed": "завершён", "completed_with_errors": "завершён с ошибками", "cancelled": "отменён", "failed": "ошибка"}
 	if name, ok := names[value]; ok {
 		return name
 	}

@@ -19,7 +19,9 @@ func Run(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	}
 	defer pool.Close()
 	health := api.NewHealth(func(ctx context.Context) error { return postgres.Ready(ctx, pool) }, cfg.HealthTimeout)
-	handler := api.NewHandler(logger, health, cfg.RequestTimeout, api.ExtensionRoutes(pairing.New(postgres.NewSessionRepository(pool))))
+	uploads := postgres.NewUploadRepository(pool)
+	extensionAPI := api.NewExtensionAPI(pairing.New(postgres.NewSessionRepository(pool)), uploads, uploads, api.ExtensionPolicy{Origins: cfg.ExtensionOrigins, IPPerMinute: cfg.APIIPPerMinute, OwnerPerMinute: cfg.APIOwnerPerMinute, ClaimPerMinute: cfg.APIClaimPerMinute})
+	handler := api.NewHandler(logger, health, cfg.RequestTimeout, extensionAPI.Register)
 	server := NewServer(cfg, handler, logger)
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", cfg.HTTPAddr)
 	if err != nil {

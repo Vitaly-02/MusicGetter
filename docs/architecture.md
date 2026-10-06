@@ -2,7 +2,7 @@
 
 Статус: принятые границы и проект контрактов; реализованы bootstrap backend, domain model, PostgreSQL repositories, управляющий
 Telegram bot и собственные extension sessions.
-Импорт и интеграции остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010.
+Приём импорта реализован; worker/matcher и destination integration остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011.
 
 ## Поток данных
 
@@ -46,7 +46,7 @@ flowchart TD
 │   ├── config/                 # environment configuration
 │   ├── logging/                # JSON slog, context logger
 │   ├── domain/                 # entities, states, metadata, fingerprint v1
-│   ├── import/contracts.go     # ingestion, leases; package importer
+│   ├── import/contracts.go     # lease port; upload.go — ingestion DTO/port
 │   ├── pairing/                # issue/redeem/revoke собственных credentials
 │   ├── matcher/contracts.go    # catalog и versioned matching policy
 │   ├── destination/contracts.go
@@ -68,7 +68,7 @@ flowchart TD
 │   ├── database.md
 │   ├── protocol.md
 │   ├── verification.md
-│   └── adr/                    # 0001–0010 + индекс
+│   └── adr/                    # 0001–0011 + индекс
 └── deploy/Dockerfile           # server, migrate и bot, runtime без root
 ```
 
@@ -123,9 +123,10 @@ Profile задаётся пользователем без чтения streamin
 
 1. Привязать собственную extension session к Telegram user, выбрать source profile
    и destination connection/target. Проверить capabilities до запуска.
-2. Создать capture. Принимать bounded batches; сохранять ACK только после commit.
-3. Seal проверяет непрерывность sequences и в одной транзакции создаёт import,
-   items и начальные jobs. Незавершённый capture не выполняет внешние эффекты.
+2. Создать collecting import + upload capture state. Принимать bounded chunks; ACK после commit.
+3. Complete проверяет непрерывность sequences и в одной транзакции ставит queued
+   и создаёт начальные jobs. Items уже сохранены чанками. Незавершённый сбор
+   не выполняет внешние эффекты.
 4. Worker claim-ит небольшой диапазон работы, нормализует metadata, запрашивает
    bounded candidates в destination catalog, применяет versioned matcher.
 5. Уверенный результат закрепляет destination track ID. Неоднозначный/пустой
@@ -137,7 +138,7 @@ Profile задаётся пользователем без чтения streamin
 7. Прогресс читается из БД; Telegram updates агрегируются с ограничением частоты.
 
 Capture: collecting → sealed_partial | sealed_complete | aborted. Seal неизменяем.
-Import: queued → running → completed | completed_with_errors | needs_attention |
+Import: collecting → queued → running → completed | completed_with_errors | needs_attention |
 failed | cancelled. После решения всех review cases needs_attention → running;
 если есть параллельная полезная работа, import остаётся running. Failed означает
 неустранимую ошибку всего импорта; локальные ошибки дают completed_with_errors.
@@ -157,7 +158,8 @@ matched включает ожидание ensure/reconcile, pending — поис
 ## Основные порты
 
 - `SourceAdapter`: supports, inspect, capture (async bounded generator).
-- `Ingestion`: Append, Seal; валидирует владельца и immutable batch replay.
+- `UploadStore`: CreateUpload, AppendChunk, CompleteUpload, CancelUpload, GetUpload;
+  owner-scoped immutable replay и транзакции PostgreSQL.
 - `JobQueue`: Claim, Renew, Complete, Retry, Fail; все изменения fenced lease.
 - `Catalog`: Search; предоставляет destination integration.
 - `Matcher`: Match; policy version, ranked candidates, no silent ambiguous choice.

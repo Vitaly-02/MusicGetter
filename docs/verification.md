@@ -23,6 +23,13 @@ protocol, polling dedup/failures/panic. PostgreSQL: code TTL 5 минут, hash-
 12 конкурентных redeem, expiry, rollback при ошибке session INSERT, replace code,
 revoke pending codes, concurrent revoke/redeem и изоляция пользователей.
 
+Extension API: auth/revoke, exact JSON schemas, credential rejection, request size,
+CORS/preflight, per-IP/owner/claim rate limits, bounded map concurrency/expiry,
+OpenAPI refs и внешний spec validator. Real PostgreSQL проверяет 12 параллельных
+chunk retries, create replay, key/sequence conflicts, gaps, cross-owner, rollback,
+complete/cancel races, HTTP E2E с 200 tracks, SQL completion 50 000 accepted tracks.
+Scale fixture использует ANALYZE после bulk seed; это correctness, не benchmark.
+
 Ниже — матрица для дальнейших business use cases. Она не означает,
 что pipeline/source/destination уже реализованы или протестированы.
 TypeScript: `tsc -p extension/tsconfig.json` после установки toolchain; зафиксировать

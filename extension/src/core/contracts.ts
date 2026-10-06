@@ -47,22 +47,60 @@ export interface SourceAdapter {
   ): AsyncGenerator<CaptureChunk, CaptureSummary, void>;
 }
 
-// Runtime validates exactly these fields and rejects unknown properties.
-// Source/profile/collection/target are fixed on the capture created by the backend.
-export interface BatchEnvelope {
-  schemaVersion: 1;
-  captureId: string;
-  sequence: number;
-  items: readonly TrackObservation[];
+// HTTP v1 wire DTOs. OpenAPI source of truth: docs/openapi.json.
+// SourceAdapter observations are mapped to these fields by future extension core.
+export interface CreateImportRequest {
+  client_request_id: string;
+  source: {
+    service: Source;
+    profile_key: string;
+    collection_key: string;
+    kind: CollectionKind;
+    title: string;
+    provisional?: boolean;
+  };
+  destination_collection_id: string;
 }
 
-// Only extension core's MV3 service worker implements the HTTPS transport.
-export interface CaptureTransport {
-  append(batch: BatchEnvelope, signal: AbortSignal): Promise<{
-    sequence: number;
-    replay: boolean;
-    acceptedItems: number;
+export interface ImportTrack {
+  title: string;
+  artists: readonly string[];
+  album?: string;
+  duration_ms?: number | null;
+  version?: string;
+  source_track_key?: string | null;
+  source_url?: string | null;
+  position: number;
+}
+
+export interface ImportChunk {
+  schema_version: 1;
+  idempotency_key: string;
+  sequence: number;
+  tracks: readonly ImportTrack[]; // 1..200; JSON body <=512 KiB
+}
+
+export interface ChunkReceipt {
+  sequence: number;
+  idempotency_key: string;
+  received: number;
+  added: number;
+  replay: boolean;
+}
+
+export interface CompleteImportRequest {
+  last_sequence: number; // -1 for an empty capture
+  observed_count: number; // sum of observations, before track identity dedup
+  completeness: "partial" | "complete";
+  reason: CaptureSummary["reason"];
+}
+
+// Transport implementation and trusted-context token storage are a future step.
+export interface ImportTransport {
+  create(request: CreateImportRequest, signal: AbortSignal): Promise<{
+    id: string; replay: boolean;
   }>;
-  seal(captureId: string, lastSequence: number, summary: CaptureSummary,
-       signal: AbortSignal): Promise<{ importId: string }>;
+  append(importId: string, chunk: ImportChunk, signal: AbortSignal): Promise<ChunkReceipt>;
+  complete(importId: string, request: CompleteImportRequest, signal: AbortSignal): Promise<void>;
+  cancel(importId: string, signal: AbortSignal): Promise<void>;
 }

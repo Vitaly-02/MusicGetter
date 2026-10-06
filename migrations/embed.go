@@ -9,4 +9,4 @@ import "embed"
 var FS embed.FS
 
 // Version must change together with the newest migration and readiness contract.
-const Version int64 = 5
+const Version int64 = 6

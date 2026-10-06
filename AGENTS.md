@@ -5,7 +5,8 @@
 `docs/architecture.md`, `docs/database.md`, `docs/verification.md` и ADR в
 `docs/adr/`. Реализованы bootstrap HTTP backend, domain model, PostgreSQL
 repositories, отдельная команда SQL migrations, управляющий Telegram bot
-и bot-issued pairing/extension sessions (ADR-0010). Бизнес-логика импорта, worker
+и bot-issued pairing/extension sessions (ADR-0010), HTTP API приёма импорта
+чанками (ADR-0011, docs/openapi.json). Исполнение импорта, worker
 и реальные source/destination adapters ещё не реализованы.
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
 границы очередной задачи; изменение принятого решения отражайте в ADR.
@@ -62,6 +63,15 @@ repositories, отдельная команда SQL migrations, управляю
   Обёртки transport errors не должны сохранять URL с bot token.
 - Claim update до handler даёт at-most-once попытку, а не гарантированную доставку.
   Новый business use case должен отдельно определить semantics retries.
+
+## Extension API
+- API v1 и DTO фиксируются в docs/openapi.json; изменять контракт и tests вместе.
+- Strict allowlist JSON, запрет unknown/duplicate fields и credentials, bounded bodies.
+- 200 tracks/512 KiB на chunk; 100 000 observations и 10 000 chunks на import.
+- collecting import не создаёт jobs до complete с непрерывным диапазоном chunks.
+- Receipt key/sequence/digest immutable; replay безопасен после seal/cancel.
+- CORS только exact extension origins; Origin не заменяет Bearer authentication.
+- Rate limiter bounded, per process; при нескольких replicas нужен общий budget.
 
 ## Проверка изменений
 - При реализации важных решений добавлять поведенческие тесты, включая сбои

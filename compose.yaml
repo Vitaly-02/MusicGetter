@@ -21,6 +21,10 @@ services:
       dockerfile: deploy/Dockerfile
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-musicgetter}:${POSTGRES_PASSWORD:-musicgetter}@postgres:5432/${POSTGRES_DB:-musicgetter}?sslmode=disable
+      EXTENSION_ORIGINS: ${EXTENSION_ORIGINS:-}
+      API_IP_PER_MINUTE: ${API_IP_PER_MINUTE:-120}
+      API_OWNER_PER_MINUTE: ${API_OWNER_PER_MINUTE:-60}
+      API_CLAIM_PER_MINUTE: ${API_CLAIM_PER_MINUTE:-5}
       HTTP_ADDR: "0.0.0.0:${BACKEND_INTERNAL_PORT:-8080}"
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DB_MAX_CONNS: ${DB_MAX_CONNS:-10}

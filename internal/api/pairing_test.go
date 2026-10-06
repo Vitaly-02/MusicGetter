@@ -40,18 +40,18 @@ func TestPairingRoutes(t *testing.T) {
 		{name: "redeem", method: "POST", path: "/v1/pairings/redeem", body: `{"code":"CODE"}`, want: 201, calls: 1},
 		{name: "unknown field", method: "POST", path: "/v1/pairings/redeem", body: `{"code":"CODE","ownerId":"victim"}`, want: 400},
 		{name: "extra JSON", method: "POST", path: "/v1/pairings/redeem", body: `{"code":"CODE"}{}`, want: 400},
-		{name: "oversize", method: "POST", path: "/v1/pairings/redeem", body: `{"code":"` + strings.Repeat("x", 1024) + `"}`, want: 400},
+		{name: "oversize", method: "POST", path: "/v1/pairings/redeem", body: `{"code":"` + strings.Repeat("x", 1024) + `"}`, want: 413},
 		{name: "wrong method", method: "GET", path: "/v1/pairings/redeem", want: 405},
 		{name: "expired", method: "POST", path: "/v1/pairings/redeem", body: `{"code":"CODE"}`, want: 401, calls: 1, err: domain.ErrNotFound},
 		{name: "unavailable", method: "POST", path: "/v1/pairings/redeem", body: `{"code":"CODE"}`, want: 503, calls: 1, err: errors.New("SECRET")},
-		{name: "session", method: "GET", path: "/v1/extension/session", auth: "Bearer token", want: 200, calls: 1},
+		{name: "session", method: "GET", path: "/v1/extension/session", auth: "Bearer mge_" + strings.Repeat("a", 43), want: 200, calls: 1},
 		{name: "no auth", method: "GET", path: "/v1/extension/session", want: 401},
 		{name: "wrong scheme", method: "GET", path: "/v1/extension/session", auth: "Basic token", want: 401},
-		{name: "revoked", method: "GET", path: "/v1/extension/session", auth: "Bearer token", want: 401, calls: 1, err: domain.ErrNotFound},
+		{name: "revoked", method: "GET", path: "/v1/extension/session", auth: "Bearer mge_" + strings.Repeat("a", 43), want: 401, calls: 1, err: domain.ErrNotFound},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := &fakeAuth{err: tc.err}
-			h := NewHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), NewHealth(func(context.Context) error { return nil }, time.Second), 2*time.Second, ExtensionRoutes(f))
+			h := NewHandler(slog.New(slog.NewTextHandler(io.Discard, nil)), NewHealth(func(context.Context) error { return nil }, time.Second), 2*time.Second, NewExtensionAPI(f, nil, nil, ExtensionPolicy{}).Register)
 			r := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
 			r.Header.Set("Content-Type", "application/json")
 			r.Header.Set("Authorization", tc.auth)

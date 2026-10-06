@@ -9,11 +9,12 @@ Backend при запуске не меняет schema. Readiness проверя
 Bootstrap `00001_bootstrap.sql` создаёт только пустую schema `musicgetter`;
 00002 создаёт accounts/collections, 00003 — tracks/mappings/memberships,
 00004 — imports/items/jobs, 00005 — extension sessions и Telegram dedup.
-Текущая expected version — 5. Migration history хранится в
+00006 — chunked import upload/receipt tables и collecting state.
+Текущая expected version — 6. Migration history хранится в
 `public.goose_db_version`. Down первой migration использует DROP SCHEMA RESTRICT, поэтому при
 наличии объектов не уничтожит их и оставит migration применённой.
 
-Новые миграции: последовательный `00006_name.sql`, секции `-- +goose Up` и
+Новые миграции: последовательный `00007_name.sql`, секции `-- +goose Up` и
 `-- +goose Down`. Изменять только ещё не применённые файлы; исправления — новой
 миграцией. Обновлять Version в embed.go. Goose выполняет каждую SQL migration
 в транзакции; session advisory lock сериализует migration runners. Lock wait
@@ -36,3 +37,7 @@ DDL с CREATE INDEX CONCURRENTLY потребует отдельного явн�
 и обычный индекс imports (блокирует writes при построении). Нужен coordinated
 upgrade. Down удаляет sessions/dedup, bot-issued и revoked codes; остальные legacy
 challenge codes сохраняются. Совместимость и ограничения — ADR-0010.
+
+00006 берёт ACCESS EXCLUSIVE для замены imports state CHECK, затем создаёт новые
+upload/receipt tables. Down теряет receipt history и переводит collecting в cancelled;
+прежние uploads нельзя возобновлять. Только coordinated rollback после backup.
