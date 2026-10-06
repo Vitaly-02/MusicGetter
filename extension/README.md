@@ -65,8 +65,8 @@ origin самого расширения; content scripts работают в or
 
 ## Источники и демонстрация
 
-Spotify, Yandex, VK — независимые заглушки. Определяется только source по host;
-содержимое библиотеки ещё не извлекается. Stub возвращает supported=false,
+Spotify и VK — независимые заглушки; Yandex DOM adapter реализован и проверен
+на синтетических fixtures, см. раздел ниже. Stub возвращает supported=false,
 metadata=null и явную unsupported ошибку вместо фиктивного успешного сбора.
 Никаких source API, cookies, webRequest, XHR interception или hidden stores.
 
@@ -109,8 +109,8 @@ getCollectionMetadata, collectVisibleTracks, collectAllTracks, observe.
 collectAllTracks возвращает **AsyncGenerator ограниченных пакетов**, а не
 Promise всей библиотеки — для десятков тысяч треков.
 
-Будущий реальный adapter должен использовать только видимый DOM и взаимодействие
-пользователя. Его подключение к content → background producer — отдельный этап:
+Каждый реальный adapter использует только видимый DOM и разрешённую прокрутку.
+Подключение Yandex к content → background producer — отдельный этап:
 нужны документ/capture ID, подтверждение каждого пакета, backpressure и partial
 при потере документа. Текущий content bridge предоставляет только `page.info`;
 runtime передачи DOM-треков намеренно не объявлен готовым. Рабочий pipeline сейчас
@@ -131,3 +131,49 @@ byte/count chunk bounds, unsafe metadata, lost ACK/restart, concurrency, cancel,
 retry budget, owner/origin isolation, token projection, auth errors, IndexedDB
 transactions/logout. Dependencies — только dev/build; runtime dependencies нет.
 Собранные dist, node_modules и .test-build исключены из Git.
+
+## Yandex DOM adapter
+
+В `src/sources/yandex/` реализован адаптер favorites (`/users/:name/tracks`,
+`/collection/tracks`, `/collection/liked-tracks`), playlists
+(`/users/:name/playlists/:id`, `/playlists/:id`) и albums (`/album/:id`).
+Только rendered DOM, без source network, storage, cookies или hidden state.
+Все selectors находятся в `selectors.ts`. Подробнее — [ADR-0013](../docs/adr/0013-yandex-rendered-dom.md).
+
+Использование в content context (consumer должен сохранять/подтверждать batch
+до следующего `next()`, а не собирать всю библиотеку в массив):
+
+```ts
+const adapter = createAdapter(new URL(location.href), document);
+const controller = new AbortController();
+const capture = adapter.collectAllTracks({
+  signal: controller.signal,
+  maxTracks: 100_000,
+  onProgress: progress => updateProgress(progress),
+});
+for (;;) {
+  const result = await capture.next();
+  if (result.done) {
+    showSummary(result.value); // complete или partial с причиной
+    break;
+  }
+  await acceptBatch(result.value.tracks);
+}
+// Кнопка отмены вызывает controller.abort().
+```
+
+`createAdapter` импортируется из `src/sources/yandex/adapter.ts`; функции
+updateProgress/showSummary/acceptBatch здесь обозначают consumer, не готовый RPC.
+Адаптер зарегистрирован для page.info, но **реальный импорт из popup пока не
+подключён**: существующая кнопка запускает только явно отмеченное демо.
+Progress доступен callback-ом; backend DTO не изменён.
+
+Сбор перемещает список к началу и прокручивает с перекрытием. Не переключайте
+коллекцию во время прохода: navigation/root/title/count changes завершают partial.
+Нет ID — metadata digest только для локального dedup, результат partial. Таймаут
+и нижняя граница сами по себе не подтверждают полноту. Hidden/incomplete rows,
+loading или несовпавший счётчик не превращаются в успешный полный экспорт.
+
+Fixtures в `tests/fixtures/yandex/` синтетические; tests моделируют layout и
+виртуализацию в jsdom, без сетевых запросов. Совместимость selectors с текущей
+живой страницей не заявляется до ручной проверки rendered DOM.

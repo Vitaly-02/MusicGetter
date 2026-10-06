@@ -10,9 +10,11 @@
     "test": "node scripts/test.mjs"
   },
   "devDependencies": {
+    "@types/jsdom": "21.1.7",
     "@types/node": "22.19.0",
     "esbuild": "0.25.12",
     "fake-indexeddb": "6.2.4",
+    "jsdom": "26.1.0",
     "typescript": "5.9.3"
   }
 }

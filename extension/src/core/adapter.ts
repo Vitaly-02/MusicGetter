@@ -1,9 +1,19 @@
 import type { CollectionKind, ImportTrack, Source, CaptureSummary } from './contracts';
 export type Track = ImportTrack;
 export interface PageContext { source: Source; supported: boolean; adapter: 'stub' | 'ready'; }
-export interface CollectionMetadata { key: string; provisional: boolean; kind: CollectionKind; title: string; }
+export interface CollectionMetadata { key: string; provisional: boolean; kind: CollectionKind; title: string; url?: string; }
 export interface Disposable { dispose(): void; }
-export interface CollectOptions { signal: AbortSignal; maxTracks: number; }
+export interface CollectionProgress {
+  collected: number;
+  expected?: number;
+  phase: 'collecting' | 'scrolling' | 'finished';
+  summary?: CaptureSummary;
+}
+export interface CollectOptions {
+  signal: AbortSignal;
+  maxTracks: number;
+  onProgress?: (progress: CollectionProgress) => void;
+}
 export interface TrackBatch { tracks: readonly Track[]; }
 /** Service-specific DOM belongs only inside sources/<service>. No network clients. */
 export interface MusicSourceAdapter {

@@ -65,7 +65,7 @@ button('cancel').onclick = () => { void action(() => send({type:'cancel'})); };
 button('retry').onclick = () => { void action(() => send({type:'resume'})); };
 button('refresh').onclick = () => { void action(() => send({type:'refresh'})); };
 input('demo').onchange = controls; element('destination').onchange = controls;
-void send<{page:null|{source:string}}>({type:'page'}).then(result => { element('source').textContent = result.page ? `${result.page.source} · адаптер-заглушка` : 'Откройте Spotify, Яндекс Музыку или VK Музыку'; }).catch(notice);
+void send<{page:null|{source:string;adapter:string;supported:boolean}}>({type:'page'}).then(result => { element('source').textContent = result.page ? `${result.page.source} · ${result.page.adapter === 'stub' ? 'адаптер-заглушка' : result.page.supported ? 'DOM-адаптер доступен (запуск импорта пока только демо)' : 'страница пока не поддерживается'}` : 'Откройте Spotify, Яндекс Музыку или VK Музыку'; }).catch(notice);
 void refreshState().catch(notice);
 const timer = setInterval(() => { if (!busy) void refreshState().catch(notice); },2000);
 window.addEventListener('pagehide',()=>clearInterval(timer));

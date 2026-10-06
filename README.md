@@ -8,7 +8,8 @@ SQL migrations, HTTP health endpoints, JSON slog, request ID, recovery и gracef
 shutdown. Добавлены domain model, PostgreSQL repositories и schema version 6. Работают управляющий Telegram bot, pairing/extension sessions
 и HTTP API для приёма импорта чанками.
 Добавлена MV3 extension foundation: popup, pairing и durable demo outbox.
-Исполнение импорта, музыкальный destination и реальные DOM source adapters пока не реализованы.
+Исполнение импорта и музыкальный destination пока не реализованы. Yandex DOM adapter
+проверен на синтетических fixtures; его подключение к popup/outbox ещё впереди.
 Расширение будет читать только доступный пользователю rendered DOM; API стримингов,
 перехват запросов и передача их credentials запрещены.
 
@@ -218,7 +219,8 @@ npm run build
 установленного расширения в `EXTENSION_ORIGINS` backend, получите `/connect` в
 боте и введите код в popup. Token хранится в private extension-origin IndexedDB.
 
-Spotify/Yandex/VK пока явно обозначены как stubs. Opt-in demo отправляет 450
+Spotify/VK остаются stubs. Yandex DOM adapter поддерживает favorites/playlist/album
+на fixture-разметке, реальный сбор ещё не подключён к popup. Opt-in demo отправляет 450
 синтетических треков в выбранную существующую destination collection (не создаёт
 destination автоматически). Работают replay неизменных chunks, backoff,
 progress и cancel. Реальный DOM capture — следующий этап. Отдельная сборка

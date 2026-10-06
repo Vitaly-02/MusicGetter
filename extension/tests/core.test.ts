@@ -15,7 +15,7 @@ test('credential fields, unsafe links and metadata rejected',()=>{
  const good={title:'Song',artists:['Artist'],position:0};
  for(const value of [{...good,cookies:'s'},{...good,access_token:'s'},{...good,source_url:'https://open.spotify.com/track/1?token=s'},{...good,source_url:'https://user:secret@open.spotify.com/track/1'},{...good,source_url:'https://evil.example/track/1'},{...good,duration_ms:-1},{...good,position:Infinity}])assert.throws(()=>validateTrack(value));
 });
-test('source detection is exact and stubs never claim a complete collection',async()=>{
+test('source detection is exact; unsupported pages and stubs never claim a complete collection',async()=>{
  for(const [url,source] of [['https://open.spotify.com/collection/tracks','spotify'],['https://music.yandex.ru/users/x','yandex'],['https://vk.com/music','vk']]){
  const adapter=adapterFor(new URL(url!));assert.equal(adapter?.detectPage()?.source,source);assert.equal(adapter?.detectPage()?.supported,false);assert.equal(adapter?.getCollectionMetadata(),null);assert.deepEqual(adapter?.collectVisibleTracks(),[]);
  await assert.rejects(()=>adapter!.collectAllTracks({signal:new AbortController().signal,maxTracks:200}).next());
