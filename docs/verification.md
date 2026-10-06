@@ -37,12 +37,14 @@ Unit tests покрывают byte/count bounds, ACK loss + worker restart, по
 cancel после uncertain create, logout race, owner/backend isolation, private status
 projection, strict metadata, API credential/redirect policy, retry budget и IndexedDB
 transactions через fake-indexeddb. Browser installation smoke пока ручной; Firefox
-runtime не объявляется проверенным только по успешной сборке. Yandex DOM collector проверяется на HTML fixtures: virtualized node reuse,
+runtime не объявляется проверенным только по успешной сборке. Yandex/Spotify DOM collectors проверяются на HTML fixtures: virtualized node reuse,
 scroll overlap, hidden text, missing metadata/ID, unsafe URL, delayed rows,
 count/end/loading signals, cancel, SPA navigation/root replacement, bounded batches
 и observer cleanup. Геометрия viewport моделируется; live selectors вручную ещё
 не проверены. Связи DOM capture с popup/outbox и resume после reload ещё нет;
-DemoProducer тестирует ingestion отдельно.
+DemoProducer тестирует ingestion отдельно. Spotify дополнительно проверяет infinite
+loading с ростом scrollHeight, disc/header rows, locale links, ARIA/count ambiguity,
+backpressure и UTF-8 byte budget на больших metadata.
 
 | Решение | Обязательная проверка перед готовностью реализации |
 |---|---|

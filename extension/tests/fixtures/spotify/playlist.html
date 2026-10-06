@@ -1,0 +1,15 @@
+<!doctype html><html><body>
+<main data-testid="playlist-page">
+<div><span data-testid="entityTitle"><h1>Evening collection</h1></span><div><span>2 songs</span><span>about 8 min</span></div></div>
+<div role="grid" aria-rowcount="3" data-testid="playlist-tracklist">
+<div role="row"><div role="columnheader">Title</div><div role="columnheader">Duration</div></div>
+<div data-testid="tracklist-row" role="row" aria-rowindex="2">
+<div role="gridcell"><span>1</span></div><div role="gridcell"><a data-testid="internal-track-link" href="/track/0000000000000000000001?si=discard#player"><div>North</div></a><a href="/artist/AAAAAAAAAAAAAAAAAAAAAA">First Artist</a>, <a href="/artist/BBBBBBBBBBBBBBBBBBBBBB">Second Artist</a></div>
+<div role="gridcell"><a href="/album/CCCCCCCCCCCCCCCCCCCCCC">Coast</a></div><div role="gridcell">Yesterday</div><div role="gridcell"><button aria-label="Save"></button><span>3:07</span></div></div>
+<div data-testid="tracklist-row" role="row" aria-rowindex="3"><div role="gridcell">2</div><div role="gridcell"><a data-testid="internal-track-link" href="/intl-de/track/0000000000000000000002">North - Live</a><a href="/artist/AAAAAAAAAAAAAAAAAAAAAA">First Artist</a></div><div role="gridcell"><span data-testid="track-duration">4:59</span></div></div>
+</div>
+<section data-testid="recommendations"><div role="grid"><div data-testid="tracklist-row"><a data-testid="internal-track-link" href="/track/0000000000000000000099">Not in collection</a><a href="/artist/AAAAAAAAAAAAAAAAAAAAAA">First Artist</a></div></div></section>
+</main>
+<aside data-testid="now-playing-widget"><a href="/track/0000000000000000000098">Player</a></aside>
+<script type="application/json">{"token":"fixture-only","tracks":[{"title":"NEVER READ"}]}</script>
+</body></html>

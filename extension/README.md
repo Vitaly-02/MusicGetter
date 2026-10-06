@@ -65,8 +65,8 @@ origin самого расширения; content scripts работают в or
 
 ## Источники и демонстрация
 
-Spotify и VK — независимые заглушки; Yandex DOM adapter реализован и проверен
-на синтетических fixtures, см. раздел ниже. Stub возвращает supported=false,
+VK остаётся заглушкой; Yandex и Spotify DOM adapters реализованы и проверены
+на синтетических fixtures, см. разделы ниже. Stub возвращает supported=false,
 metadata=null и явную unsupported ошибку вместо фиктивного успешного сбора.
 Никаких source API, cookies, webRequest, XHR interception или hidden stores.
 
@@ -110,7 +110,7 @@ collectAllTracks возвращает **AsyncGenerator ограниченных 
 Promise всей библиотеки — для десятков тысяч треков.
 
 Каждый реальный adapter использует только видимый DOM и разрешённую прокрутку.
-Подключение Yandex к content → background producer — отдельный этап:
+Подключение Yandex/Spotify к content → background producer — отдельный этап:
 нужны документ/capture ID, подтверждение каждого пакета, backpressure и partial
 при потере документа. Текущий content bridge предоставляет только `page.info`;
 runtime передачи DOM-треков намеренно не объявлен готовым. Рабочий pipeline сейчас
@@ -177,3 +177,29 @@ loading или несовпавший счётчик не превращаютс
 Fixtures в `tests/fixtures/yandex/` синтетические; tests моделируют layout и
 виртуализацию в jsdom, без сетевых запросов. Совместимость selectors с текущей
 живой страницей не заявляется до ручной проверки rendered DOM.
+
+## Spotify DOM adapter
+
+`src/sources/spotify/adapter.ts` предоставляет `SpotifyAdapter` и `createAdapter`.
+Контракт и usage совпадают с Yandex: `collectAllTracks({signal, maxTracks,
+onProgress})` возвращает AsyncGenerator batches и итоговый CaptureSummary.
+Поддержаны Liked Songs (`/collection/tracks`), `/playlist/:id`, `/album/:id`
+на `https://open.spotify.com`, включая `/intl-xx/` prefix.
+
+Собираются title (с live/remaster qualifiers), artists, optional album/duration,
+DOM track link и его ID. Без ID metadata остаётся доступной, но capture partial.
+Сбор прокручивает основной список с начала с перекрытием, учитывает повторное
+использование DOM nodes и delayed/infinite loading. Карточки рекомендаций,
+плеер, queue и скрытые строки исключаются. Никаких Spotify API/network responses,
+React/internal state, cookies или source storage.
+
+Полный результат требует подтверждённого видимого конца; неподтверждённая полнота,
+лимиты или неполная metadata дают partial. Counter распознаёт точные английские/
+русские значения; неизвестная локаль или округлённый count не угадываются.
+Selectors и service-specific logic локальны в `sources/spotify/`.
+
+Fixtures `tests/fixtures/spotify/` — синтетические contracts, live DOM текущего
+Spotify ещё не проверен. Тесты: `npm test`, `npm run typecheck`.
+Как у Yandex, **запуск реального Spotify capture из popup/outbox ещё не подключён**;
+popup показывает detection, а кнопка импорта по-прежнему запускает только демо.
+Решения и ограничения: [ADR-0014](../docs/adr/0014-spotify-rendered-dom.md).

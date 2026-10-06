@@ -17,3 +17,5 @@
 - [0012 — Browser extension foundation и durable outbox](0012-extension-foundation.md)
 
 - [0013 — Yandex rendered DOM, виртуализация и конец коллекции](0013-yandex-rendered-dom.md)
+
+- [0014 — Spotify Web rendered DOM adapter](0014-spotify-rendered-dom.md)

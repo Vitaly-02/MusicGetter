@@ -37,8 +37,8 @@ Telegram Bot API используется через long polling; webhook по�
 Контракт, примеры, retry semantics и лимиты — [Extension API](extension-api.md),
 машиночитаемая схема — [OpenAPI 3.1.1](openapi.json). HTTP wire DTOs в
 extension/src/core/contracts.ts. Основа runtime расширения реализована (ADR-0012):
-pairing, popup и отправка чанков. Yandex DOM adapter реализован отдельно (ADR-0013),
-его capture ещё не подключён к popup/outbox; Spotify/VK остаются заглушками.
+pairing, popup и отправка чанков. Yandex/Spotify DOM adapters реализованы отдельно (ADR-0013/0014),
+их capture ещё не подключён к popup/outbox; VK остаётся заглушкой.
 
 Import появляется в collecting. Чанки атомарно записывают tracks/items/receipts;
 complete проверяет последовательность и только затем создаёт jobs. partial/complete
