@@ -1,8 +1,9 @@
 # Архитектура MusicGetter
 
 Статус: принятые границы и проект контрактов; реализованы bootstrap backend, domain model, PostgreSQL repositories, управляющий
-Telegram bot и собственные extension sessions.
-Приём импорта реализован; worker/matcher и destination integration остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011.
+Telegram bot, собственные extension sessions и MV3 extension foundation
+с popup/pairing/durable demo outbox. Реальные DOM source adapters пока stubs.
+Приём импорта реализован; worker/matcher и destination integration остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011, extension runtime — ADR-0012.
 
 ## Поток данных
 
@@ -55,9 +56,17 @@ flowchart TD
 │   └── telegram/               # handlers управляющего бота
 ├── extension/
 │   ├── README.md
+│   ├── package.json / package-lock.json
+│   ├── scripts/                # builds Chrome/Firefox и tests
+│   ├── tests/                  # core, API, storage, recovery
 │   ├── tsconfig.json
 │   └── src/
-│       ├── core/contracts.ts
+│       ├── background/         # trusted RPC, credentials, alarms
+│       ├── content/            # page.info; DOM transport — будущий этап
+│       ├── popup/              # подключение, demo, progress, cancel
+│       ├── api/                # HTTP v1, timeout, safe errors
+│       ├── storage/            # extension-origin IndexedDB
+│       ├── core/               # DTO, adapters, bounded outbox engine
 │       └── sources/
 │           ├── spotify/
 │           ├── yandex/
@@ -68,7 +77,7 @@ flowchart TD
 │   ├── database.md
 │   ├── protocol.md
 │   ├── verification.md
-│   └── adr/                    # 0001–0011 + индекс
+│   └── adr/                    # 0001–0012 + индекс
 └── deploy/Dockerfile           # server, migrate и bot, runtime без root
 ```
 
@@ -85,7 +94,8 @@ flowchart TD
 Go 1.27.1, Go modules, net/http, slog, pgxpool и Goose Provider для миграций.
 Прямые зависимости — pgx, Goose и golang.org/x/text для Unicode normalization;
 sqlc пока не добавлен, SQL repositories небольшие и явные.
-TypeScript toolchain/lockfile и MV3 manifest появятся с первой реализацией extension.
+TypeScript 5.9.3 / esbuild, package lockfile и MV3 builds существуют.
+Runtime dependencies отсутствуют; fake-indexeddb используется только в tests.
 
 ## Извлечение из DOM
 

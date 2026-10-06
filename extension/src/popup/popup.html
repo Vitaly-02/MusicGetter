@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MusicGetter</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+<header><span class="mark" aria-hidden="true">♫</span><div><h1>MusicGetter</h1><p>Коллекция с вами</p></div><span class="badge">PREVIEW</span></header>
+<main>
+<section class="card"><h2>Подключение</h2><p id="connection">Проверяем подключение…</p><p class="small" id="backend"></p>
+<form id="pair-form"><label for="code">Одноразовый код из /connect в боте</label><div class="row"><input id="code" autocomplete="off" spellcheck="false" maxlength="128" placeholder="Код действует 5 минут" required><button type="submit">Подключить</button></div></form>
+<div class="row actions"><button id="reconnect" class="secondary" type="button">Проверить связь</button><button id="logout" class="text-button" type="button">Выйти</button></div>
+<p class="small">Выход удаляет локальную задачу и токен. Отправленный импорт отменяется отдельно; все подключения можно отозвать в /settings бота.</p></section>
+<section class="card"><h2>Текущая страница</h2><p id="source">Определяем источник…</p><p class="small">Адаптеры Spotify, Яндекс Музыки и VK пока заглушки. Чтение вашей библиотеки ещё недоступно.</p></section>
+<section class="card"><h2>Проверка переноса</h2><p>Демо отправляет 450 <strong>синтетических</strong> треков в ваш backend. Это не музыка с текущей страницы.</p>
+<label for="destination">Коллекция назначения</label><div class="row"><select id="destination"><option value="">Сначала подключитесь</option></select><button id="destinations" class="secondary" type="button" title="Обновить коллекции">↻</button></div><button id="next" class="text-button" type="button" hidden>Следующая страница</button>
+<label for="profile">Название локального профиля</label><input id="profile" value="personal" maxlength="250">
+<label class="check"><input id="demo" type="checkbox"> Я хочу отправить тестовые данные</label><button id="start" class="primary" type="button" disabled>Запустить демо</button>
+</section>
+<section class="card" aria-live="polite"><h2>Прогресс</h2><p id="progress-text">Импорт ещё не запущен</p><progress id="progress" value="0" max="450"></progress><p class="small" id="details"></p><div class="row"><button id="retry" class="secondary" type="button" disabled>Повторить</button><button id="cancel" class="secondary" type="button" disabled>Отменить импорт</button><button id="refresh" class="text-button" type="button" disabled>Статус</button></div></section>
+<p id="notice" role="status" aria-live="polite"></p>
+</main><script src="popup.js"></script></body></html>

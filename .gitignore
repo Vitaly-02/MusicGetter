@@ -34,3 +34,6 @@ dist/
 Thumbs.db
 
 docs/dev_env.md
+
+# Extension test bundles
+/extension/.test-build/

@@ -32,8 +32,13 @@ Scale fixture использует ANALYZE после bulk seed; это correctn
 
 Ниже — матрица для дальнейших business use cases. Она не означает,
 что pipeline/source/destination уже реализованы или протестированы.
-TypeScript: `tsc -p extension/tsconfig.json` после установки toolchain; зафиксировать
-версии и lockfile с первым package.json. MV3 runtime/build пока не существует.
+Extension: npm ci && npm run typecheck && npm test, npm run build и build:firefox.
+Unit tests покрывают byte/count bounds, ACK loss + worker restart, повторные wakeups,
+cancel после uncertain create, logout race, owner/backend isolation, private status
+projection, strict metadata, API credential/redirect policy, retry budget и IndexedDB
+transactions через fake-indexeddb. Browser installation smoke пока ручной; Firefox
+runtime не объявляется проверенным только по успешной сборке. Реального DOM capture
+и его resume после navigation ещё нет, DemoProducer тестирует ingestion отдельно.
 
 | Решение | Обязательная проверка перед готовностью реализации |
 |---|---|

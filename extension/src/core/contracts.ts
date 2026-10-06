@@ -35,17 +35,7 @@ export interface CaptureSummary {
   renderedExpectedCount?: number;
 }
 
-// Each adapter sees only its own host's document. No network clients or credentials.
-// Capture buffers at most one bounded chunk; core persists it before requesting next.
-export interface SourceAdapter {
-  readonly source: Source;
-  supports(location: URL): boolean;
-  inspect(document: Document): CollectionObservation | null;
-  capture(
-    document: Document,
-    options: { readonly signal: AbortSignal; readonly maxItems: number },
-  ): AsyncGenerator<CaptureChunk, CaptureSummary, void>;
-}
+// MusicSourceAdapter and bounded collection options are defined in adapter.ts.
 
 // HTTP v1 wire DTOs. OpenAPI source of truth: docs/openapi.json.
 // SourceAdapter observations are mapped to these fields by future extension core.
@@ -95,7 +85,7 @@ export interface CompleteImportRequest {
   reason: CaptureSummary["reason"];
 }
 
-// Transport implementation and trusted-context token storage are a future step.
+// Runtime transport is implemented in api/client.ts and the durable engine.
 export interface ImportTransport {
   create(request: CreateImportRequest, signal: AbortSignal): Promise<{
     id: string; replay: boolean;

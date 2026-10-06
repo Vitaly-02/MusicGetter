@@ -14,3 +14,4 @@
 - [0009 — Domain identity, constraints и persistence](0009-domain-identity-persistence.md)
 - [0010 — Telegram bot, pairing и extension sessions](0010-telegram-pairing-sessions.md)
 - [0011 — Extension API и транзакционный приём чанков](0011-extension-import-api.md)
+- [0012 — Browser extension foundation и durable outbox](0012-extension-foundation.md)

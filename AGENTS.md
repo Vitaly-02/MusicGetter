@@ -6,7 +6,8 @@
 `docs/adr/`. Реализованы bootstrap HTTP backend, domain model, PostgreSQL
 repositories, отдельная команда SQL migrations, управляющий Telegram bot
 и bot-issued pairing/extension sessions (ADR-0010), HTTP API приёма импорта
-чанками (ADR-0011, docs/openapi.json). Исполнение импорта, worker
+чанками (ADR-0011, docs/openapi.json), MV3 extension foundation с popup, pairing
+и durable demo outbox (ADR-0012). Исполнение импорта, worker
 и реальные source/destination adapters ещё не реализованы.
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
 границы очередной задачи; изменение принятого решения отражайте в ADR.
@@ -72,6 +73,16 @@ repositories, отдельная команда SQL migrations, управляю
 - Receipt key/sequence/digest immutable; replay безопасен после seal/cancel.
 - CORS только exact extension origins; Origin не заменяет Bearer authentication.
 - Rate limiter bounded, per process; при нескольких replicas нужен общий budget.
+
+## Browser extension
+- TypeScript, MV3, Chrome first; Firefox-specific background manifest собирается отдельно.
+- Tokens только в extension-origin IndexedDB, никогда в content/page RPC или sync storage.
+- Content пока предоставляет page.info, реальные source adapters — явные stubs.
+  Synthetic DemoProducer не выдаётся за пользовательскую библиотеку.
+- MusicSourceAdapter.collectAllTracks — AsyncGenerator bounded batches; не Promise всей библиотеки.
+- Pending chunk сохраняется до POST, ACK проверяется до удаления. Worker restart не меняет key/body.
+- Смена owner/backend не позволяет replay чужой очереди; logout не восстанавливается late response.
+- Extension tests: npm ci, npm run typecheck, npm test, npm run build и build:firefox.
 
 ## Проверка изменений
 - При реализации важных решений добавлять поведенческие тесты, включая сбои

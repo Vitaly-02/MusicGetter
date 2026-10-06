@@ -7,7 +7,8 @@ Monorepo для переноса музыкальных коллекций из 
 SQL migrations, HTTP health endpoints, JSON slog, request ID, recovery и graceful
 shutdown. Добавлены domain model, PostgreSQL repositories и schema version 6. Работают управляющий Telegram bot, pairing/extension sessions
 и HTTP API для приёма импорта чанками.
-Исполнение импорта, музыкальный destination и extension runtime пока не реализованы.
+Добавлена MV3 extension foundation: popup, pairing и durable demo outbox.
+Исполнение импорта, музыкальный destination и реальные DOM source adapters пока не реализованы.
 Расширение будет читать только доступный пользователю rendered DOM; API стримингов,
 перехват запросов и передача их credentials запрещены.
 
@@ -200,6 +201,30 @@ X-Forwarded-For не доверяется. Production transport — HTTPS.
 пользователя список пуст: реальный destination/provisioning ещё не подключён.
 Миграции и обновление Docker: `make docker-up`. Спецификацию дополнительно можно
 проверить `uvx --from openapi-spec-validator openapi-spec-validator docs/openapi.json`.
+
+## Browser extension
+
+```sh
+cd extension
+npm ci
+npm run typecheck
+npm test
+npm run build
+```
+
+В `chrome://extensions` включите режим разработчика и загрузите распакованную
+папку `extension/dist/chrome`. Backend по умолчанию `http://127.0.0.1:8080`;
+другой HTTPS origin задаётся `MUSICGETTER_BACKEND_URL` при build. Укажите origin
+установленного расширения в `EXTENSION_ORIGINS` backend, получите `/connect` в
+боте и введите код в popup. Token хранится в private extension-origin IndexedDB.
+
+Spotify/Yandex/VK пока явно обозначены как stubs. Opt-in demo отправляет 450
+синтетических треков в выбранную существующую destination collection (не создаёт
+destination автоматически). Работают replay неизменных chunks, backoff,
+progress и cancel. Реальный DOM capture — следующий этап. Отдельная сборка
+`npm run build:firefox` использует event background; browser smoke пока ручной.
+
+[Установка, приватность токена и recovery](extension/README.md).
 
 ## Конфигурация
 
