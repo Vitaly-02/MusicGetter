@@ -68,5 +68,25 @@ services:
         condition: service_healthy
     stop_grace_period: 30s
 
+  worker:
+    profiles: [worker]
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    command: ["/app/worker"]
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-musicgetter}:${POSTGRES_PASSWORD:-musicgetter}@postgres:5432/${POSTGRES_DB:-musicgetter}?sslmode=disable
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+      WORKER_LEASE: ${WORKER_LEASE:-30s}
+      WORKER_POLL_INTERVAL: ${WORKER_POLL_INTERVAL:-1s}
+      WORKER_JOB_TIMEOUT: ${WORKER_JOB_TIMEOUT:-2m}
+      WORKER_RETRY_BASE: ${WORKER_RETRY_BASE:-1s}
+      WORKER_RETRY_MAX: ${WORKER_RETRY_MAX:-5m}
+    depends_on:
+      backend:
+        condition: service_healthy
+    stop_grace_period: 30s
+
 volumes:
   postgres_data:

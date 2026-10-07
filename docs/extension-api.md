@@ -9,7 +9,7 @@
 | POST /v1/pair/claim | Одноразовая привязка кодом из `/connect` |
 | GET /v1/me | Текущий пользователь и extension session |
 | GET /v1/destinations | Сохранённые коллекции текущего пользователя, cursor/limit |
-| POST /v1/imports | Создать collecting import, client_request_id обязателен |
+| POST /v1/imports | Создать import в state created, client_request_id обязателен |
 | POST /v1/imports/{id}/tracks | Атомарно принять чанк, idempotency_key обязателен |
 | POST /v1/imports/{id}/complete | Проверить диапазон чанков и завершить сбор |
 | POST /v1/imports/{id}/cancel | Идемпотентно отменить импорт |

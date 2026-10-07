@@ -41,3 +41,8 @@ docker-down:
 bot:
 	$(GO) build -o bin/bot ./cmd/bot
 	./bin/bot
+
+.PHONY: worker
+worker:
+	$(GO) build -o bin/worker ./cmd/worker
+	./bin/worker

@@ -5,7 +5,7 @@ Monorepo для переноса музыкальных коллекций из 
 
 Реализован bootstrap Go backend: environment configuration, PostgreSQL pool,
 SQL migrations, HTTP health endpoints, JSON slog, request ID, recovery и graceful
-shutdown. Добавлены domain model, PostgreSQL repositories и schema version 6. Работают управляющий Telegram bot, pairing/extension sessions
+shutdown. Добавлены domain model, PostgreSQL repositories и schema version 7. Работают управляющий Telegram bot, pairing/extension sessions
 и HTTP API для приёма импорта чанками.
 Добавлена MV3 extension foundation: popup, pairing и durable demo outbox.
 Исполнение импорта и музыкальный destination пока не реализованы. Yandex/Spotify/VK DOM adapters
@@ -172,7 +172,7 @@ ImportJob; SourceProfile/DestinationConnection изолируют аккаунт
 Fingerprint v1 вычисляется из нормализованных metadata при отсутствии source key.
 Уникальные ограничения блокируют повторный item и membership, в том числе при
 конкурентных вставках. Reserved membership не подтверждает удалённую отправку;
-worker и destination integration ещё не реализованы.
+Worker реализован; конкретный destination adapter пока не подключён.
 
 [Схема, ограничения, repositories и границы fingerprint](docs/database.md).
 Применить новые миграции локально: `make migrate-up`; обновить Docker backend и
@@ -189,8 +189,8 @@ worker и destination integration ещё не реализованы.
 
 Чанки: 1–200 tracks, максимум 512 KiB. `client_request_id` дедуплицирует создание,
 `idempotency_key` + sequence + server digest — повтор чанка. Complete проверяет
-непрерывность чанков и создаёт jobs; worker пока не исполняется. До complete import
-остаётся collecting. GET status возвращает счётчики, без выгрузки всей библиотеки.
+непрерывность чанков и создаёт jobs для worker. До complete import
+имеет state created/receiving. GET status возвращает счётчики, без выгрузки всей библиотеки.
 
 В `.env` задайте `EXTENSION_ORIGINS` точными origins установленных расширений.
 Пустой список запрещает все запросы с Origin; без Origin запросы допустимы при
@@ -281,3 +281,23 @@ HTTP_WRITE_TIMEOUT`. Compose ждёт остановку 30s: при увели�
 - [Правила разработки](AGENTS.md)
 
 Module path `musicgetter` пока локальный; перед публикацией заменить на адрес repo.
+
+## Import worker
+
+После `make migrate-up` с тем же `DATABASE_URL`: `make worker`.
+Для Compose: `docker compose --profile worker up -d --build worker` после `make docker-up`.
+Параметры `WORKER_*` описаны в `.env.example`; concurrency по умолчанию 4,
+lease 30s, timeout задачи 2m, retries до 8 попыток с exponential jitter 1s–5m.
+SIGTERM отменяет I/O, durable leases восстанавливаются следующим worker.
+
+**Registry destination adapters пока пуст.** Pipeline готов для подключения
+проверенного Destination/Catalog factory в `cmd/worker`; текущий бинарник завершает
+unsupported items ошибкой и ничего не отправляет музыкальному боту. Tests используют
+contract fake. Автоматические sends разрешены только atomic membership adapter;
+read-before-add не достаточен. Matching — консервативный exact_metadata_v1;
+ambiguous/not_found требуют отдельного review workflow, ещё не реализованного.
+
+Schema 7 меняет состояния API: created/receiving/queued/processing и terminal states.
+Для обновления остановите API/bot/worker, примените migration, обновите extension
+и перезапустите процессы. Миграция берёт table locks; rollback и unknown effects
+описаны в [ADR-0017](docs/adr/0017-import-pipeline.md).

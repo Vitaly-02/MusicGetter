@@ -60,7 +60,7 @@ func (r *UploadRepository) CreateUpload(ctx context.Context, owner domain.ID, c 
 		return out, err
 	}
 	out.ID = record.ID
-	_, err = tx.Exec(ctx, `UPDATE musicgetter.imports SET state='collecting' WHERE id=$1`, out.ID)
+	_, err = tx.Exec(ctx, `UPDATE musicgetter.imports SET state='created' WHERE id=$1`, out.ID)
 	if err != nil {
 		return out, repositoryError(err)
 	}

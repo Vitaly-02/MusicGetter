@@ -60,10 +60,10 @@ const (
 type ImportState string
 
 const (
-	ImportCollecting          ImportState = "collecting"
+	ImportCreated             ImportState = "created"
+	ImportReceiving           ImportState = "receiving"
 	ImportQueued              ImportState = "queued"
-	ImportRunning             ImportState = "running"
-	ImportNeedsAttention      ImportState = "needs_attention"
+	ImportProcessing          ImportState = "processing"
 	ImportCompleted           ImportState = "completed"
 	ImportCompletedWithErrors ImportState = "completed_with_errors"
 	ImportCancelled           ImportState = "cancelled"

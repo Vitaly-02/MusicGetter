@@ -7,8 +7,8 @@
 repositories, отдельная команда SQL migrations, управляющий Telegram bot
 и bot-issued pairing/extension sessions (ADR-0010), HTTP API приёма импорта
 чанками (ADR-0011, docs/openapi.json), MV3 extension foundation с popup, pairing
-и durable outbox (ADR-0012), Import all/Select tracks с DOM selection (ADR-0016). Исполнение импорта, worker
-и реальные destination adapters ещё не реализованы. Yandex, Spotify и VK DOM adapters реализованы
+и durable outbox (ADR-0012), Import all/Select tracks с DOM selection (ADR-0016). Import pipeline, exact matcher и durable worker реализованы (ADR-0017);
+реальные destination adapters ещё не реализованы. Yandex, Spotify и VK DOM adapters реализованы
 и проверены на синтетических fixtures (ADR-0013/0014/0015).
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
 границы очередной задачи; изменение принятого решения отражайте в ADR.
@@ -45,6 +45,9 @@ repositories, отдельная команда SQL migrations, управляю
   Не менять normalization незаметно; не считать metadata fingerprint акустическим ID.
 - Идемпотентность обязательна на уровнях приёма batch, jobs и membership.
   Повторный импорт не добавляет существующий destination track в тот же target.
+- Worker допускает sends только с подтверждённым AtomicEnsureMembership. Registry
+  cmd/worker пока пуст; fake destination разрешён только в tests. Unknown ledger
+  сохраняется при retry exhaustion/cancel, не объявлять отсутствие effect.
 - Не объявлять exactly-once внешнего эффекта без доказуемого механизма.
   Неопределённый результат отправки требует reconciliation, не слепого retry.
 - Тысячи и десятки тысяч треков: bounded batches, backpressure, keyset pagination,

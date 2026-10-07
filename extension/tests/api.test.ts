@@ -34,3 +34,11 @@ test('bad ACK never clears a pending batch',async()=>{
  const client=new Client(origin,session.token,async()=>new Response(JSON.stringify({sequence:99,idempotency_key:'wrong',received:1,added:1}),{status:200}));
  await assert.rejects(()=>client.append(importID,{schema_version:1,idempotency_key:'right',sequence:0,tracks:[{title:'Song',artists:['A'],position:0}]},new AbortController().signal));
 });
+
+test('progress accepts pipeline state vocabulary and rejects obsolete states',async()=>{
+ for (const state of ['created','receiving','queued','processing','completed','completed_with_errors','cancelled','failed','running','collecting']) {
+  const client=new Client(origin,session.token,async()=>new Response(JSON.stringify({id:importID,state,total_tracks:1,added:0,failed:0}),{status:200}));
+  if (['running','collecting'].includes(state)) await assert.rejects(()=>client.progress(importID));
+  else assert.equal((await client.progress(importID)).state,state);
+ }
+});

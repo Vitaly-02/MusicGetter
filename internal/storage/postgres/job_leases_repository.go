@@ -66,10 +66,12 @@ func (r *JobRepository) RequeueExpired(ctx context.Context, limit int) (int64, e
 		return 0, err
 	}
 	tag, err := r.db.Exec(ctx, `WITH expired AS (
- SELECT id FROM musicgetter.import_jobs WHERE state='leased' AND lease_until<=clock_timestamp()
- ORDER BY lease_until,id FOR UPDATE SKIP LOCKED LIMIT $1
- ) UPDATE musicgetter.import_jobs j SET state=CASE WHEN j.attempts>=j.max_attempts THEN 'failed' ELSE 'ready' END,
- available_at=clock_timestamp(),worker_id=NULL,lease_until=NULL,generation=j.generation+1,last_error_code='lease_expired'
+ SELECT j.id,i.state AS import_state FROM musicgetter.import_jobs j JOIN musicgetter.imports i ON i.id=j.import_id
+ WHERE j.state='leased' AND j.lease_until<=clock_timestamp()
+ ORDER BY j.lease_until,j.id FOR UPDATE OF j SKIP LOCKED LIMIT $1
+ ) UPDATE musicgetter.import_jobs j SET state=CASE WHEN j.attempts>=j.max_attempts OR (j.kind<>'reconcile' AND expired.import_state NOT IN ('queued','processing')) THEN 'failed' ELSE 'ready' END,
+ available_at=clock_timestamp(),worker_id=NULL,lease_until=NULL,generation=j.generation+1,
+ last_error_code=CASE WHEN expired.import_state='cancelled' THEN 'import_cancelled' ELSE 'lease_expired' END
  FROM expired WHERE j.id=expired.id`, limit)
 	return tag.RowsAffected(), repositoryError(err)
 }

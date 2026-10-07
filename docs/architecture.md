@@ -5,7 +5,7 @@ Telegram bot, собственные extension sessions и MV3 extension foundat
 с popup/pairing/durable demo outbox. Yandex/Spotify/VK DOM adapters реализованы и проверены на fixtures (ADR-0013/0014/0015).
 DOM capture и выбор отдельных треков подключены к popup/outbox (ADR-0016);
 живые страницы пока не проверены вручную.
-Приём импорта реализован; worker/matcher и destination integration остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011, extension runtime — ADR-0012.
+Приём импорта, worker и exact matcher реализованы (ADR-0017). Реальный destination adapter не подключён. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011, extension runtime — ADR-0012.
 
 ## Поток данных
 
@@ -133,39 +133,31 @@ Profile задаётся пользователем без чтения streamin
 
 ## Pipeline и состояния
 
-1. Привязать собственную extension session к Telegram user, выбрать source profile
-   и destination connection/target. Проверить capabilities до запуска.
-2. Создать collecting import + upload capture state. Принимать bounded chunks; ACK после commit.
-3. Complete проверяет непрерывность sequences и в одной транзакции ставит queued
-   и создаёт начальные jobs. Items уже сохранены чанками. Незавершённый сбор
-   не выполняет внешние эффекты.
-4. Worker claim-ит небольшой диапазон работы, нормализует metadata, запрашивает
-   bounded candidates в destination catalog, применяет versioned matcher.
-5. Уверенный результат закрепляет destination track ID. Неоднозначный/пустой
-   результат отправляет item в needs_review; управляющий бот показывает варианты,
-   позволяет выбрать, пропустить или повторить поиск после изменения metadata.
-6. Для каждой membership worker атомарно резервирует operation и выполняет
-   EnsureTrack. applied/already_present закрывают item; pending/unknown запускают
-   reconciliation; rejected становится ошибкой или управляемым retry.
-7. Прогресс читается из БД; Telegram updates агрегируются с ограничением частоты.
+1. Создать import (created), принимать чанки (receiving). Normalization/fingerprint
+   и input dedup выполняются при записи каждого чанка. Capture state остаётся collecting.
+2. Seal в одной транзакции создаёт jobs и queued; пустой import сразу completed.
+3. Worker: processing → cached mapping или bounded search → exact_metadata_v1.
+   Item pending → searching → matched либо ambiguous/not_found.
+4. Persisted membership intent → проверка applied/optional remote Contains/reconcile
+   → atomic EnsureTrack → added/already_present. Unknown не означает отсутствие effect.
+5. Последний item закрывает import: completed или completed_with_errors. Cancelled
+   не откатывает effects. Failed зарезервирован для abort всего import.
 
-Capture: collecting → sealed_partial | sealed_complete | aborted. Seal неизменяем.
-Import: collecting → queued → running → completed | completed_with_errors | needs_attention |
-failed | cancelled. После решения всех review cases needs_attention → running;
-если есть параллельная полезная работа, import остаётся running. Failed означает
-неустранимую ошибку всего импорта; локальные ошибки дают completed_with_errors.
-Item: pending → searching → matched → ensuring → added | already_present;
-searching → needs_review → matched | skipped; ensuring → reconciling → ensuring
-(только если безопасно) | added | already_present | needs_review | failed.
-Любой ещё не отправленный item может быть cancelled. Job и item — разные сущности:
-несколько попыток job не увеличивают число обработанных треков.
+Item states: pending, searching, matched, ambiguous, not_found, already_present,
+added, failed. Внутреннее ожидание ensure/reconcile остаётся matched, intent — unknown.
+Cancel отмечает незавершённые items failed с error_code=import_cancelled. Подтверждение
+in-flight эффекта может перевести такой item в added при cancelled import.
+API v1 сохраняет aggregate needs_review (ambiguous), failed (failed + not_found,
+без import_cancelled), cancelled (error_code=import_cancelled).
 
-Cancel прекращает новые внешние эффекты и jobs, но не откатывает уже добавленное.
-Отправленное до отмены доводится до known outcome/review; неизвестные операции
-продолжают reconciliation даже для cancelled import. Retry не сбрасывает ledger.
-Total фиксируется после seal. Progress — взаимоисключающие buckets текущих items;
-matched включает ожидание ensure/reconcile, pending — поиск, needs_review включает
-неоднозначный match/unknown effect. Для skipped хранится отдельный счётчик.
+Один durable job проходит item со checkpoint matched; SKIP LOCKED, lease heartbeat,
+fencing всех DB transitions, bounded exponential retry/jitter и expired-lease repair.
+Каждый slot держит один item и не более 50 candidates. Лимит 1–64 slots/process.
+Ambiguous results не разрешаются автоматически; review workflow пока не реализован.
+Доставка допускается только через atomic membership adapter, подробнее ADR-0017.
+Registry cmd/worker пуст; запускаемый worker честно завершит unsupported items ошибкой.
+Unknown после отмены/исчерпания retries сохраняется для последующего import или
+ручной reconciliation; отдельного background reconciliation daemon пока нет.
 
 ## Основные порты
 
@@ -173,6 +165,8 @@ matched включает ожидание ensure/reconcile, pending — поис
 - `UploadStore`: CreateUpload, AppendChunk, CompleteUpload, CancelUpload, GetUpload;
   owner-scoped immutable replay и транзакции PostgreSQL.
 - `JobQueue`: Claim, Renew, Complete, Retry, Fail; все изменения fenced lease.
+- `PipelineStore`: Load, Matched, Intent, Finish, Reschedule; атомарные owner-scoped checkpoints.
+- `Resolver`: connection → Destination + Catalog из trusted factory registry.
 - `Catalog`: Search; предоставляет destination integration.
 - `Matcher`: Match; policy version, ranked candidates, no silent ambiguous choice.
 - `Destination`: Capabilities, EnsureTrack; связь с конкретным ботом скрыта.
@@ -221,11 +215,12 @@ in flight, bounded outbox до 20 MiB с паузой при переполне�
 неограниченная fan-out загрузка. Индексы и нагрузочные критерии — в database/verification.
 
 Job claim использует короткую транзакцию SKIP LOCKED. Lease heartbeat, generation,
-exponential backoff + jitter, destination-specific rate limit и max attempts.
+exponential backoff + jitter и max attempts. Destination-specific rate budget пока
+остаётся ответственностью будущего адаптера; worker ограничивает concurrency.
 Crash между DB commit и запуском worker покрывает durable jobs. Crash вокруг
 внешнего effect покрывают ledger и reconciliation, не транзакция PostgreSQL.
 
-Метрики: backlog/oldest job age, retries, capture partial rate, match ambiguity,
+Планируемые метрики (экспортёр пока не реализован): backlog/oldest job age, retries, capture partial rate, match ambiguity,
 unknown effects, latency и rate limiting. slog пишет correlation IDs и safe error
 codes; названия треков, коллекций, Telegram сообщения и секреты по умолчанию исключены.
 TLS снаружи; migrations выполняются отдельным release step. Go/DB timeouts,

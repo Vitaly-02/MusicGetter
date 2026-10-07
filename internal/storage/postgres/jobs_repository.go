@@ -50,7 +50,7 @@ func (r *JobRepository) Claim(ctx context.Context, worker string, limit int, lea
 	rows, err := r.db.Query(ctx, `WITH picked AS (
  SELECT j.id FROM musicgetter.import_jobs j JOIN musicgetter.imports i ON i.id=j.import_id
  WHERE j.state='ready' AND j.available_at<=clock_timestamp() AND j.attempts<j.max_attempts
- AND (i.state IN ('queued','running','needs_attention') OR j.kind='reconcile')
+ AND (i.state IN ('queued','processing') OR j.kind='reconcile')
  ORDER BY j.available_at,j.id FOR UPDATE OF j SKIP LOCKED LIMIT $1
  ) UPDATE musicgetter.import_jobs j SET state='leased',worker_id=$2,
  lease_until=clock_timestamp()+$3*interval '1 millisecond',generation=j.generation+1,attempts=j.attempts+1

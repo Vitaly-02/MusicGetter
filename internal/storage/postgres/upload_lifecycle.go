@@ -27,7 +27,7 @@ func (r *UploadRepository) CompleteUpload(ctx context.Context, owner, id domain.
 		}
 		return domain.ErrConflict
 	}
-	if u.capture != domain.CaptureCollecting || u.state != domain.ImportCollecting || u.chunks != *c.LastSequence+1 || u.through != *c.LastSequence || u.observations != *c.ObservedCount {
+	if u.capture != domain.CaptureCollecting || (u.state != domain.ImportReceiving && u.state != domain.ImportCreated) || u.chunks != *c.LastSequence+1 || u.through != *c.LastSequence || u.observations != *c.ObservedCount {
 		return domain.ErrConflict
 	}
 	state := domain.CaptureSealedPartial
@@ -66,7 +66,7 @@ func (r *UploadRepository) CancelUpload(ctx context.Context, owner, id domain.ID
 	if u.state == domain.ImportCancelled {
 		return repositoryError(tx.Commit(ctx))
 	}
-	if u.state != domain.ImportCollecting && u.state != domain.ImportQueued && u.state != domain.ImportRunning && u.state != domain.ImportNeedsAttention {
+	if (u.state != domain.ImportReceiving && u.state != domain.ImportCreated) && u.state != domain.ImportQueued && u.state != domain.ImportProcessing {
 		return domain.ErrConflict
 	}
 	_, err = tx.Exec(ctx, `UPDATE musicgetter.imports SET state='cancelled' WHERE id=$1`, id)
@@ -77,7 +77,7 @@ func (r *UploadRepository) CancelUpload(ctx context.Context, owner, id domain.ID
 	if err != nil {
 		return repositoryError(err)
 	}
-	_, err = tx.Exec(ctx, `UPDATE musicgetter.import_items SET state='cancelled' WHERE import_id=$1 AND state IN ('pending','searching','needs_review','matched')`, id)
+	_, err = tx.Exec(ctx, `UPDATE musicgetter.import_items SET state='failed',error_code='import_cancelled' WHERE import_id=$1 AND state IN ('pending','searching','matched')`, id)
 	if err != nil {
 		return repositoryError(err)
 	}

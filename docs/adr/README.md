@@ -23,3 +23,5 @@
 - [0015 — VK Music rendered DOM и коллекции в диалогах](0015-vk-rendered-dom.md)
 
 - [0016 — Выбор треков и подключение DOM capture к outbox](0016-selection-and-dom-import.md)
+
+- [0017 — Import pipeline, worker и безопасная доставка](0017-import-pipeline.md)

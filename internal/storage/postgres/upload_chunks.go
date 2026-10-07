@@ -35,7 +35,7 @@ func (r *UploadRepository) AppendChunk(ctx context.Context, owner, id domain.ID,
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return receipt, repositoryError(err)
 	}
-	if u.capture != domain.CaptureCollecting || u.state != domain.ImportCollecting {
+	if u.capture != domain.CaptureCollecting || (u.state != domain.ImportReceiving && u.state != domain.ImportCreated) {
 		return receipt, domain.ErrConflict
 	}
 	if u.observations+int64(len(c.Tracks)) > importer.MaxObservations {
@@ -59,6 +59,10 @@ func (r *UploadRepository) AppendChunk(ctx context.Context, owner, id domain.ID,
 		return receipt, repositoryError(err)
 	}
 	_, err = tx.Exec(ctx, `UPDATE musicgetter.import_uploads u SET received_chunks=received_chunks+1,received_observations=received_observations+$2,contiguous_through=CASE WHEN $3=contiguous_through+1 THEN (SELECT min(c.sequence) FROM musicgetter.import_chunks c WHERE c.import_id=u.import_id AND c.sequence>u.contiguous_through AND NOT EXISTS(SELECT 1 FROM musicgetter.import_chunks n WHERE n.import_id=c.import_id AND n.sequence=c.sequence+1)) ELSE contiguous_through END WHERE import_id=$1`, id, receipt.Received, receipt.Sequence)
+	if err != nil {
+		return receipt, repositoryError(err)
+	}
+	_, err = tx.Exec(ctx, `UPDATE musicgetter.imports SET state='receiving' WHERE id=$1 AND state='created'`, id)
 	if err != nil {
 		return receipt, repositoryError(err)
 	}

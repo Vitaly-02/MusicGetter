@@ -65,7 +65,7 @@ func TestUploadReplayGapsSealAndJobs(t *testing.T) {
 	}
 	view, err := r.GetUpload(f.ctx, f.user.ID, created.ID)
 	requireOK(t, err)
-	if view.TotalTracks != 2 || view.ReceivedObservations != 4 || view.ReceivedChunks != 2 || view.ContiguousThrough != 1 || view.State != domain.ImportCollecting {
+	if view.TotalTracks != 2 || view.ReceivedObservations != 4 || view.ReceivedChunks != 2 || view.ContiguousThrough != 1 || view.State != domain.ImportReceiving {
 		t.Fatalf("bad view %+v", view)
 	}
 	requireOK(t, r.CompleteUpload(f.ctx, f.user.ID, created.ID, uploadComplete(1, 4)))

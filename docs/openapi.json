@@ -254,7 +254,7 @@
     "/v1/imports": {
       "post": {
         "operationId": "createImport",
-        "description": "Create collecting import and find/create source profile/collection for current user. client_request_id is unique per user; canonical typed payload is immutable across retries. Destination must belong to current user.",
+        "description": "Create import (state created) and find/create source profile/collection for current user. client_request_id is unique per user; canonical typed payload is immutable across retries. Destination must belong to current user.",
         "responses": {
           "400": {
             "$ref": "#/components/responses/Error400"
@@ -597,7 +597,7 @@
     "/v1/imports/{id}/cancel": {
       "post": {
         "operationId": "cancelImport",
-        "description": "Idempotently cancel collecting/queued/running/needs_attention imports. Empty body or {} only. Prevent new writes/jobs; already applied external effects are not reversed; leased/uncertain effects require worker reconciliation.",
+        "description": "Idempotently cancel created/receiving/queued/processing imports. Empty body or {} only. Prevent new writes/jobs; already applied external effects are not reversed; leased/uncertain effects require worker reconciliation.",
         "responses": {
           "400": {
             "$ref": "#/components/responses/Error400"
@@ -1413,10 +1413,10 @@
           "state": {
             "type": "string",
             "enum": [
-              "collecting",
+              "created",
+              "receiving",
               "queued",
-              "running",
-              "needs_attention",
+              "processing",
               "completed",
               "completed_with_errors",
               "cancelled",

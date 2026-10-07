@@ -1,6 +1,6 @@
 # PostgreSQL: domain model и persistence
 
-Реализованы миграции 00001–00006, expected schema version — 6. Schema `musicgetter`,
+Реализованы миграции 00001–00007, expected schema version — 7. Schema `musicgetter`,
 UUID через `gen_random_uuid()`, timestamptz, bigint для Telegram IDs, duration и
 позиций. Нет pgcrypto/ORM или стороннего генератора UUID. PostgreSQL 17 в Compose.
 
@@ -21,7 +21,7 @@ UUID через `gen_random_uuid()`, timestamptz, bigint для Telegram IDs, du
 | TrackMapping / track_mappings | Принятое соответствие, origin и policy version | UNIQUE (canonical_track_id,connection_id); owner/connection FK к destination track |
 | DestinationMembership / destination_memberships | Единственная запись намерения/подтверждения добавления | UNIQUE (collection_id,destination_track_id); постоянный UNIQUE operation_key |
 | Import / imports | Owner, source/destination collections, request key, state | UNIQUE (owner_id,request_key); обе коллекции принадлежат одному owner |
-| import_uploads | Capture state и counters для collecting Import | PK import_id, owner FK, SHA-256 create/complete digest |
+| import_uploads | Capture state и counters для created/receiving Import | PK import_id, owner FK, SHA-256 create/complete digest |
 | import_chunks | Durable ACK без raw JSON payload | PK(import_id,sequence), UNIQUE(import_id,idempotency_key), digest/received/added |
 | ImportItem / import_items | Canonical track, первая позиция, state, optional selected destination track | UNIQUE (import_id,canonical_track_id); profile/source/connection совпадают с import |
 | ImportJob / import_jobs | item, kind, logical key, attempts, schedule, lease/worker/generation | UNIQUE (item_id,kind) и (import_id,kind,logical_key); item принадлежит этому import |
@@ -113,16 +113,17 @@ Renew/Complete/Retry/Fail проверяют owner, job, worker, generation и �
 Expired recovery ограничен limit, увеличивает generation; attempts >= max дают
 failed. Retry откладывает available_at. Enqueue никогда не оживляет completed/failed
 job. Claim не начинает match/deliver для terminal import; reconcile допускается,
-чтобы разбирать неизвестные эффекты после отмены. Worker обязан повторно проверять
-отмену перед внешним эффектом. Background worker, backoff policy и sends пока нет.
+как низкоуровневая возможность очереди; автоматический cancelled reconciliation
+пока не подключён. Worker обязан повторно проверять
+отмену перед внешним эффектом. Worker, backoff и delivery pipeline реализованы в ADR-0017; реальные destination adapters отсутствуют.
 
 ## Миграции и дальнейшие этапы
 
 00002 создаёт аккаунты/коллекции; 00003 — tracks/mappings/memberships;
 00004 — imports/items/jobs. Новые таблицы не переписывают старую business data;
 DDL и UNIQUE indexes выполняются на новых таблицах внутри migration transactions.
-Goose lock сериализует runners. Readiness version 6 несовместим со старым бинарником
-version 5: сначала coordinated upgrade, для rolling deploy нужен expand/contract.
+Goose lock сериализует runners. Readiness version 7 несовместим со старым бинарником
+version 6: сначала coordinated upgrade, для rolling deploy нужен expand/contract.
 
 Down удаляет соответствующие таблицы вместе с данными. В dev/test можно проверить
 на изолированной БД; для рабочей базы — backup и остановка writers, предпочтительно
@@ -136,10 +137,20 @@ membership/history idempotency keys разрушает гарантию повт
 читает owner-scoped imports по (created_at DESC,id DESC), limit 10,
 агрегирует статус одного import в SQL; playlists имеют UUID keyset.
 
-00006 реализует import_uploads/import_chunks. Новый API создаёт collecting import,
+00006 реализует import_uploads/import_chunks. API теперь создаёт created import (с 00007), затем receiving,
 пишет canonical tracks/items постепенно, а complete создаёт jobs одной транзакцией.
 Детали uniqueness, counters, лимитов и rollback — ADR-0011. UploadRepository сам
 владеет транзакциями; внешние destination calls отсутствуют.
 
 Ещё не реализованы candidate history, collection mappings, target creation operations
-и worker execution. HTTP endpoints приёма и progress уже защищены extension Bearer.
+(worker execution реализован). HTTP endpoints приёма и progress уже защищены extension Bearer.
+
+## Pipeline migration 00007
+
+Vocabulary Import/ImportItem, error_code и индекс failed jobs добавлены ADR-0017.
+Migration требует остановки процессов; UPDATE/ALTER/CREATE INDEX держат table locks.
+Down сохраняет membership ledger/keys/unknown, преобразует vocabulary обратно и
+теряет error_code. Подробности совместимости и ограничения — ADR-0017.
+PipelineRepository блокирует parent import → leased job, проверяет generation и
+DB clock до commit. Match checkpoint, membership intent, terminal item/job/import
+согласованы транзакциями; внешний вызов всегда вне transaction.

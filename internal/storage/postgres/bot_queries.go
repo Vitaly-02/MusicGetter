@@ -26,7 +26,7 @@ func (q *BotQueries) Imports(ctx context.Context, owner domain.ID, cursor string
 }
 func (q *BotQueries) Status(ctx context.Context, owner domain.ID, id string) (domain.ImportSummary, error) {
 	var v domain.ImportSummary
-	err := q.db.QueryRow(ctx, `SELECT i.id,i.source,i.state,count(t.id),count(t.id) FILTER(WHERE t.state IN ('added','already_present')),count(t.id) FILTER(WHERE t.state='failed'),count(t.id) FILTER(WHERE t.state='needs_review') FROM (SELECT id,source,state FROM musicgetter.imports WHERE owner_id=$1 AND ($2='' OR id=NULLIF($2,'')::uuid) ORDER BY created_at DESC,id DESC LIMIT 1) i LEFT JOIN musicgetter.import_items t ON t.import_id=i.id AND t.owner_id=$1 GROUP BY i.id,i.source,i.state`, owner, id).Scan(&v.ID, &v.Source, &v.State, &v.Total, &v.Done, &v.Failed, &v.NeedsReview)
+	err := q.db.QueryRow(ctx, `SELECT i.id,i.source,i.state,count(t.id),count(t.id) FILTER(WHERE t.state IN ('added','already_present')),count(t.id) FILTER(WHERE t.state IN ('failed','not_found')),count(t.id) FILTER(WHERE t.state='ambiguous') FROM (SELECT id,source,state FROM musicgetter.imports WHERE owner_id=$1 AND ($2='' OR id=NULLIF($2,'')::uuid) ORDER BY created_at DESC,id DESC LIMIT 1) i LEFT JOIN musicgetter.import_items t ON t.import_id=i.id AND t.owner_id=$1 GROUP BY i.id,i.source,i.state`, owner, id).Scan(&v.ID, &v.Source, &v.State, &v.Total, &v.Done, &v.Failed, &v.NeedsReview)
 	return v, repositoryError(err)
 }
 func (q *BotQueries) Playlists(ctx context.Context, owner domain.ID, cursor string) ([]domain.CollectionSummary, error) {

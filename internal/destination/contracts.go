@@ -8,9 +8,12 @@ import (
 )
 
 type Capabilities struct {
-	TargetKinds            []domain.DestinationCollectionKind
-	Search                 bool
-	NativeIdempotency      bool
+	TargetKinds       []domain.DestinationCollectionKind
+	Search            bool
+	NativeIdempotency bool
+	// AtomicEnsureMembership promises set semantics for (account,target,track),
+	// including preexisting tracks, concurrent/external writers and retries after
+	// arbitrary timeouts. A read-before-add adapter cannot advertise this.
 	AtomicEnsureMembership bool
 	ReadMembership         bool
 	ReconcileOperations    bool

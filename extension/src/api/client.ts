@@ -67,7 +67,7 @@ export class Client implements API {
   }
   private async serverProgress(path: string, method: string, body?: unknown, signal?: AbortSignal): Promise<ServerProgress> {
     const result = await this.request<ServerProgress>(path, method, body, signal);
-    if (!result || !isID(result.id) || !['collecting','queued','running','needs_attention','completed','completed_with_errors','cancelled','failed'].includes(result.state) || [result.total_tracks,result.added,result.failed].some(n => !Number.isSafeInteger(n) || n < 0 || n > 100000)) throw new AppError('unavailable');
+    if (!result || !isID(result.id) || !['created','receiving','queued','processing','completed','completed_with_errors','cancelled','failed'].includes(result.state) || [result.total_tracks,result.added,result.failed].some(n => !Number.isSafeInteger(n) || n < 0 || n > 100000)) throw new AppError('unavailable');
     return { id: result.id, state: result.state, total_tracks: result.total_tracks, added: result.added, failed: result.failed };
   }
   complete(id: string, request: CompleteImportRequest, signal: AbortSignal): Promise<ServerProgress> { return this.serverProgress(this.path(id) + '/complete', 'POST', request, signal); }

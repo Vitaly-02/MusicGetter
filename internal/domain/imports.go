@@ -18,20 +18,18 @@ type Import struct {
 type ImportItemState string
 
 const (
+	ItemNotFound       ImportItemState = "not_found"
 	ItemPending        ImportItemState = "pending"
 	ItemSearching      ImportItemState = "searching"
-	ItemNeedsReview    ImportItemState = "needs_review"
+	ItemAmbiguous      ImportItemState = "ambiguous"
 	ItemMatched        ImportItemState = "matched"
-	ItemEnsuring       ImportItemState = "ensuring"
-	ItemReconciling    ImportItemState = "reconciling"
 	ItemAdded          ImportItemState = "added"
 	ItemAlreadyPresent ImportItemState = "already_present"
-	ItemSkipped        ImportItemState = "skipped"
 	ItemFailed         ImportItemState = "failed"
-	ItemCancelled      ImportItemState = "cancelled"
 )
 
 type ImportItem struct {
+	ErrorCode          string
 	ID                 ID
 	OwnerID            ID
 	ImportID           ID

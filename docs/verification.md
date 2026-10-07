@@ -31,7 +31,7 @@ complete/cancel races, HTTP E2E с 200 tracks, SQL completion 50 000 accepted tr
 Scale fixture использует ANALYZE после bulk seed; это correctness, не benchmark.
 
 Ниже — матрица для дальнейших business use cases. Она не означает,
-что pipeline/source/destination уже реализованы или протестированы.
+что все будущие destination integrations уже реализованы или протестированы.
 Extension: npm ci && npm run typecheck && npm test, npm run build и build:firefox.
 Unit tests покрывают byte/count bounds, ACK loss + worker restart, повторные wakeups,
 cancel после uncertain create, logout race, owner/backend isolation, private status
@@ -84,3 +84,15 @@ Selection (ADR-0016): normalized/source key identity, removal/recycling checkbox
 freeze versus change, keyset byte/count budgets, owner/tab/frame/document/source
 RPC isolation, lost start ACK, lost HTTP ACK + worker restart, all/selected completeness
 и backend cancel. Manual live-browser smoke остаётся непроведённым.
+
+## Import pipeline (ADR-0017)
+
+Unit: exact matcher (versions, duplicate candidates, ambiguity), capped jitter,
+worker config limits. PostgreSQL integration: повтор favorites/playlist/album/selection,
+source-key cache, повторная проверка provisional mapping, cross-source destination
+membership, concurrent aliases, preexisting remote membership, chunk fingerprint
+fallback/replay → seal → execution, lost ACK + fresh worker/lease fencing, cancellation
+с late effect evidence, owner isolation, retry exhaustion/expired last lease repair,
+unsafe destination без sends, bounded concurrency/heartbeat/shutdown.
+Contract fake реализует atomic set semantics; это не test реального музыкального бота.
+Extension tests проверяют новый enum progress; OpenAPI и bot labels обновлены вместе.

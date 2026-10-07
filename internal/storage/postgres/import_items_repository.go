@@ -8,7 +8,7 @@ import (
 	"musicgetter/internal/domain"
 )
 
-const itemColumns = `id,owner_id,import_id,canonical_track_id,position,state,destination_track_id,created_at`
+const itemColumns = `id,owner_id,import_id,canonical_track_id,position,state,destination_track_id,created_at,error_code`
 
 // First occurrence wins. A replay does not change position, state or selected track.
 func (r *ImportRepository) AddItem(ctx context.Context, owner, importID, trackID domain.ID, position int64) (domain.ImportItem, error) {
@@ -41,6 +41,6 @@ func (r *ImportRepository) ListItems(ctx context.Context, owner, importID domain
 }
 func scanItem(row pgx.Row) (domain.ImportItem, error) {
 	var v domain.ImportItem
-	err := row.Scan(&v.ID, &v.OwnerID, &v.ImportID, &v.CanonicalTrackID, &v.Position, &v.State, &v.DestinationTrackID, &v.CreatedAt)
+	err := row.Scan(&v.ID, &v.OwnerID, &v.ImportID, &v.CanonicalTrackID, &v.Position, &v.State, &v.DestinationTrackID, &v.CreatedAt, &v.ErrorCode)
 	return v, repositoryError(err)
 }
