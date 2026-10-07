@@ -4,6 +4,7 @@ import type { API } from '../api/client';
 import type { Producer } from './demo';
 import { AppError, safeError } from './errors';
 import { jsonBytes, MAX_BYTES, MAX_OBSERVATIONS, validateTrack } from './validation';
+import { selectionKey } from './selection';
 import { retryDelay } from './retry';
 /** One durable pending chunk and one HTTP operation at a time. No keepalive hacks. */
 export class Engine {
@@ -70,15 +71,15 @@ export class Engine {
       if (chunk.schema_version !== 1 || chunk.sequence !== job.nextSequence || chunk.sequence >= 10000 || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(chunk.idempotency_key) || chunk.tracks.length < 1 || chunk.tracks.length > 200 || jsonBytes(chunk) > MAX_BYTES || job.accepted + chunk.tracks.length > MAX_OBSERVATIONS) throw new AppError('invalid_data');
       chunk.tracks.forEach(validateTrack);
       // Persist exact key, sequence and payload BEFORE sending; at most 512 KiB.
-      await this.save(job, { pending: chunk, stage: 'uploading' }); return;
+      await this.save(job, { pending: chunk, stage: 'uploading', ...(job.captureId ? { pendingCursor: await selectionKey(job.create.source.service, chunk.tracks.at(-1)!) } : {}) }); return;
     }
     if (job.stage === 'uploading') {
       if (!job.pending) throw new AppError('storage');
       const ack = await api.append(job.importId, job.pending, signal);
-      await this.save(job, { stage: 'collecting', accepted: job.accepted + ack.received, added: job.added + ack.added, nextSequence: job.nextSequence + 1 }, true); return;
+      await this.save(job, { stage: 'collecting', accepted: job.accepted + ack.received, added: job.added + ack.added, nextSequence: job.nextSequence + 1, ...(job.pendingCursor ? { cursor: job.pendingCursor } : {}) }, true); return;
     }
     if (job.stage === 'completing') {
-      const result = await api.complete(job.importId, { last_sequence: job.nextSequence - 1, observed_count: job.accepted, completeness: 'partial', reason: 'unknown_end' }, signal);
+      const result = await api.complete(job.importId, { last_sequence: job.nextSequence - 1, observed_count: job.accepted, completeness: job.summary?.completeness ?? 'partial', reason: job.summary?.reason ?? 'unknown_end' }, signal);
       await this.save(job, { stage: 'done', serverState: result.state });
     }
   }

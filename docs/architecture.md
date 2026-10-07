@@ -3,7 +3,8 @@
 Статус: принятые границы и проект контрактов; реализованы bootstrap backend, domain model, PostgreSQL repositories, управляющий
 Telegram bot, собственные extension sessions и MV3 extension foundation
 с popup/pairing/durable demo outbox. Yandex/Spotify/VK DOM adapters реализованы и проверены на fixtures (ADR-0013/0014/0015).
-Реальный DOM capture ещё не подключён к popup/outbox.
+DOM capture и выбор отдельных треков подключены к popup/outbox (ADR-0016);
+живые страницы пока не проверены вручную.
 Приём импорта реализован; worker/matcher и destination integration остаются проектом. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011, extension runtime — ADR-0012.
 
 ## Поток данных
@@ -63,8 +64,8 @@ flowchart TD
 │   ├── tsconfig.json
 │   └── src/
 │       ├── background/         # trusted RPC, credentials, alarms
-│       ├── content/            # page.info; DOM transport — будущий этап
-│       ├── popup/              # подключение, demo, progress, cancel
+│       ├── content/            # DOM capture, scoped selection RPC и overlay
+│       ├── popup/              # подключение, all/selected/demo, progress, cancel
 │       ├── api/                # HTTP v1, timeout, safe errors
 │       ├── storage/            # extension-origin IndexedDB
 │       ├── core/               # DTO, adapters, bounded outbox engine
@@ -78,7 +79,7 @@ flowchart TD
 │   ├── database.md
 │   ├── protocol.md
 │   ├── verification.md
-│   └── adr/                    # 0001–0015 + индекс
+│   └── adr/                    # 0001–0016 + индекс
 └── deploy/Dockerfile           # server, migrate и bot, runtime без root
 ```
 

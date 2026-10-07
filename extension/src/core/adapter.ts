@@ -22,5 +22,6 @@ export interface MusicSourceAdapter {
   collectVisibleTracks(): Track[];
   // Streaming is deliberate: Promise<Track[]> would retain a large library in RAM.
   collectAllTracks(options: CollectOptions): AsyncGenerator<TrackBatch, CaptureSummary, void>;
+  selectionRows?(): readonly import('./capture').SelectionRow[];
   observe(callback: () => void): Disposable;
 }

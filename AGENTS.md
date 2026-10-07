@@ -7,7 +7,7 @@
 repositories, отдельная команда SQL migrations, управляющий Telegram bot
 и bot-issued pairing/extension sessions (ADR-0010), HTTP API приёма импорта
 чанками (ADR-0011, docs/openapi.json), MV3 extension foundation с popup, pairing
-и durable demo outbox (ADR-0012). Исполнение импорта, worker
+и durable outbox (ADR-0012), Import all/Select tracks с DOM selection (ADR-0016). Исполнение импорта, worker
 и реальные destination adapters ещё не реализованы. Yandex, Spotify и VK DOM adapters реализованы
 и проверены на синтетических fixtures (ADR-0013/0014/0015).
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
@@ -78,8 +78,12 @@ repositories, отдельная команда SQL migrations, управляю
 ## Browser extension
 - TypeScript, MV3, Chrome first; Firefox-specific background manifest собирается отдельно.
 - Tokens только в extension-origin IndexedDB, никогда в content/page RPC или sync storage.
-- Content пока предоставляет page.info; Yandex/Spotify/VK DOM adapters реализованы отдельно,
-  реальный capture ещё не подключён к durable outbox/popup.
+- Content предоставляет page.info и scoped selection RPC; Yandex/Spotify/VK подключены
+  к popup и durable outbox. Selection metadata только в extension-origin IndexedDB,
+  identity по source key/normalized metadata digest, не по DOM node.
+- Capture RPC привязан к owner/origin/tab/frame/document nonce; tokens не отправляются content.
+- Frozen selection immutable; keyset cursor продвигается только после ACK.
+  Reload страницы требует нового режима; selection переживает scroll/recycling и worker restart.
   Synthetic DemoProducer не выдаётся за пользовательскую библиотеку.
 - MusicSourceAdapter.collectAllTracks — AsyncGenerator bounded batches; не Promise всей библиотеки.
 - Pending chunk сохраняется до POST, ACK проверяется до удаления. Worker restart не меняет key/body.

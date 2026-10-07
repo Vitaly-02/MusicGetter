@@ -21,3 +21,5 @@
 - [0014 — Spotify Web rendered DOM adapter](0014-spotify-rendered-dom.md)
 
 - [0015 — VK Music rendered DOM и коллекции в диалогах](0015-vk-rendered-dom.md)
+
+- [0016 — Выбор треков и подключение DOM capture к outbox](0016-selection-and-dom-import.md)

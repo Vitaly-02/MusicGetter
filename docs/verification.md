@@ -41,8 +41,8 @@ runtime не объявляется проверенным только по у�
 scroll overlap, hidden text, missing metadata/ID, unsafe URL, delayed rows,
 count/end/loading signals, cancel, SPA navigation/root replacement, bounded batches
 и observer cleanup. Геометрия viewport моделируется; live selectors вручную ещё
-не проверены. Связи DOM capture с popup/outbox и resume после reload ещё нет;
-DemoProducer тестирует ingestion отдельно. Spotify дополнительно проверяет infinite
+не проверены. DOM capture подключён к popup/outbox, автоматического UI resume после reload ещё нет;
+DemoProducer остаётся отдельным ingestion fixture. Spotify дополнительно проверяет infinite
 loading с ростом scrollHeight, disc/header rows, locale links, ARIA/count ambiguity,
 backpressure и UTF-8 byte budget на больших metadata.
 
@@ -78,3 +78,9 @@ queries, backlog drain rate и ограничение destination. Числен�
 VK fixtures дополнительно проверяют foreground dialog, query-only navigation,
 album list prerequisite, запрет data-audio/data-full-id и 1 200 виртуальных
 треков при трёх переиспользуемых DOM nodes. Это correctness, не benchmark.
+
+Selection (ADR-0016): normalized/source key identity, removal/recycling checkbox
+на fixtures трёх сервисов, clear/start/cancel, IndexedDB reopen/concurrent counts,
+freeze versus change, keyset byte/count budgets, owner/tab/frame/document/source
+RPC isolation, lost start ACK, lost HTTP ACK + worker restart, all/selected completeness
+и backend cancel. Manual live-browser smoke остаётся непроведённым.

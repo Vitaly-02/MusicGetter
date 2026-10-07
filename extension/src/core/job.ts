@@ -5,6 +5,8 @@ export interface Job {
   id: string; owner: string; origin: string;
   create: CreateImportRequest;
   importId?: string;
+  captureId?: string; cursor?: string; pendingCursor?: string;
+  summary?: import('./contracts').CaptureSummary;
   stage: 'creating' | 'collecting' | 'uploading' | 'completing' | 'done' | 'cancelled';
   cancelRequested: boolean;
   pending?: ImportChunk;

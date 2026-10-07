@@ -105,16 +105,17 @@ keepalive и бесконечных retry loops нет. Неподтверждё
 
 `src/core/adapter.ts` определяет `MusicSourceAdapter`, `PageContext`,
 `CollectionMetadata`, `Track`, `Disposable`. Методы: detectPage,
-getCollectionMetadata, collectVisibleTracks, collectAllTracks, observe.
+getCollectionMetadata, collectVisibleTracks, collectAllTracks, observe и optional selectionRows.
 collectAllTracks возвращает **AsyncGenerator ограниченных пакетов**, а не
 Promise всей библиотеки — для десятков тысяч треков.
 
 Каждый реальный adapter использует только видимый DOM и разрешённую прокрутку.
-Подключение Yandex/Spotify/VK к content → background producer — отдельный этап:
-нужны документ/capture ID, подтверждение каждого пакета, backpressure и partial
-при потере документа. Текущий content bridge предоставляет только `page.info`;
-runtime передачи DOM-треков намеренно не объявлен готовым. Рабочий pipeline сейчас
-проверяется через DemoProducer и tests, без обращений к стримингам.
+DOM capture подключён к background через scoped selection RPC (ADR-0016).
+Consumer сохраняет выбранные metadata в extension-origin IndexedDB; после freeze
+keyset producer передаёт batches в durable outbox. UI после reload требует нового
+открытия режима, а queued upload переживает restart background.
+
+Capture и upload проверяются на fixtures и fake transport без обращений к стримингам.
 
 ## Проверки
 
@@ -164,9 +165,9 @@ for (;;) {
 
 `createAdapter` импортируется из `src/sources/yandex/adapter.ts`; функции
 updateProgress/showSummary/acceptBatch здесь обозначают consumer, не готовый RPC.
-Адаптер зарегистрирован для page.info, но **реальный импорт из popup пока не
-подключён**: существующая кнопка запускает только явно отмеченное демо.
-Progress доступен callback-ом; backend DTO не изменён.
+Адаптер зарегистрирован для page.info и подключён к Import all / Select tracks;
+демо запускается отдельной кнопкой.
+Progress доступен callback-ом и в overlay; backend DTO не изменён.
 
 Сбор перемещает список к началу и прокручивает с перекрытием. Не переключайте
 коллекцию во время прохода: navigation/root/title/count changes завершают partial.
@@ -200,8 +201,7 @@ Selectors и service-specific logic локальны в `sources/spotify/`.
 
 Fixtures `tests/fixtures/spotify/` — синтетические contracts, live DOM текущего
 Spotify ещё не проверен. Тесты: `npm test`, `npm run typecheck`.
-Как у Yandex, **запуск реального Spotify capture из popup/outbox ещё не подключён**;
-popup показывает detection, а кнопка импорта по-прежнему запускает только демо.
+Spotify подключён к режимам Import all / Select tracks через общий selection engine.
 Решения и ограничения: [ADR-0014](../docs/adr/0014-spotify-rendered-dom.md).
 
 ## VK Music DOM adapter
@@ -227,5 +227,36 @@ Virtualized/infinite traversal идёт с начала списка с пере
 дают partial. Fixtures `tests/fixtures/vk/` синтетические; live UI не проверен.
 Tests включают 1 200 виртуальных треков при трёх DOM nodes.
 
-**Реальный capture VK из popup/outbox ещё не подключён**, как Spotify/Yandex;
-кнопка импорта пока запускает demo. Детали: [ADR-0015](../docs/adr/0015-vk-rendered-dom.md).
+VK подключён к Import all / Select tracks, как Spotify/Yandex. Детали: [ADR-0015](../docs/adr/0015-vk-rendered-dom.md).
+
+## Import all / Select tracks
+
+1. Подключитесь к backend, выберите существующую destination collection и profile.
+2. Откройте поддержанную страницу Spotify/Yandex/VK и popup расширения.
+3. **Import all** прокрутит доступную коллекцию, покажет полноту и автоматически
+   запустит upload собранных треков. Неизвестный конец даёт явно отмеченный partial.
+4. **Select tracks** покажет отдельный checkbox overlay рядом с видимыми строками.
+   Отметки сохраняются при scroll, удалении DOM nodes и закрытии popup.
+   «Выбрать все с прокруткой» проходит доступный список; это не только viewport.
+   «Очистить выбор» снимает все отметки. Счётчик показывает сохранённый выбор.
+5. «Начать импорт» фиксирует выбор и запускает загрузку; checkbox больше не меняет
+   frozen snapshot. Backend progress и retry находятся в popup.
+6. «Отмена» на странице или «Отменить выбор / сбор» в popup прекращает capture,
+   очищает selection; если upload уже начат — ставит durable backend cancel.
+
+Selection хранится в IndexedDB расширения, по source key либо normalized metadata
+SHA-256. DOM node не является identity, полная metadata библиотеки не держится в RAM.
+Selected subset явно передаётся как partial; разные известные track IDs не сливаются.
+Source cookies, storage и tokens не читаются и не передаются. Создание destination
+пока не реализовано: если список назначений пуст, запуск недоступен.
+
+Один активный capture. Новый режим заменяет прежний выбор; во время upload замена
+запрещена. Navigation/reload требует нового режима, автоматического UI восстановления
+после reload нет. Worker restart сохраняет выбор и upload. После upload snapshot
+хранится до нового режима/cancel/logout. Выход удаляет local snapshot/job/token;
+удалённую задачу при необходимости отмените до выхода.
+
+Selectors проверены на синтетических fixtures. Ручной smoke: установить сборку,
+открыть доступную коллекцию, отметить трек, прокрутить до его удаления из DOM и
+вернуться; убедиться в сохранении отметки, затем проверить clear/start/cancel.
+Live-site и Firefox runtime совместимость не подтверждаются одной сборкой.

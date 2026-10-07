@@ -1,3 +1,4 @@
+import { selectionRows } from './selection';
 import type { MusicSourceAdapter, PageContext, CollectionMetadata, Track, CollectOptions, Disposable, TrackBatch } from '../../core/adapter';
 import type { CaptureSummary } from '../../core/contracts';
 import { AppError } from '../../core/errors';
@@ -31,6 +32,7 @@ export class YandexAdapter implements MusicSourceAdapter {
     try { return yield* collect(this.doc, this.currentURL, options, this.timing); }
     finally { this.collecting = false; }
   }
+  selectionRows() { return this.doc ? selectionRows(this.doc, this.currentURL()) : []; }
   observe(callback: () => void): Disposable {
     const root = this.doc && pageRoot(this.doc), view = this.doc?.defaultView;
     if (!root || !view) return { dispose() {} };

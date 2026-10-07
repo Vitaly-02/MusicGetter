@@ -11,8 +11,9 @@ const labels: Record<ErrorCode,string> = {
   conflict:'Состояние импорта изменилось. Обновите статус; неизменный пакет нельзя заменить другим.', invalid_data:'Проверьте код и выбранные значения.', unavailable:'Сервис временно недоступен.',
   pairing_uncertain:'Код мог быть использован, но подключение не завершилось. Получите новый /connect и повторите.', permission:'Нужен доступ к вашему backend или текущей вкладке.', unsupported:'Сбор этого источника ещё не реализован.', account_mismatch:'Задача принадлежит другому аккаунту. Подключите прежний аккаунт или выйдите, чтобы очистить локальную задачу.', storage:'Не удалось сохранить очередь. Проверьте доступное место в профиле браузера.', retry_exhausted:'Попытки исчерпаны. Нажмите «Повторить».'
 };
-interface State { connected: boolean; telegramUser: number | null; expiresAt: string | null; job: null | { stage: string; accepted: number; added: number; total: number; retryAt: number; blocked: boolean; error?: ErrorCode; cancelRequested: boolean; serverState?: string; importId?: string }; }
+interface State { connected: boolean; telegramUser: number | null; expiresAt: string | null; job: null | { stage: string; accepted: number; added: number; total: number; demo: boolean; completeness?: string; retryAt: number; blocked: boolean; error?: ErrorCode; cancelRequested: boolean; serverState?: string; importId?: string }; }
 let state: State | undefined, cursor = '', busy = false, loadedDestinations = false;
+let supportedPage = false;
 async function send<T>(message: unknown): Promise<T> {
   const reply = await browser.runtime.sendMessage(message) as { ok: boolean; data?: T; error?: ErrorCode };
   if (!reply.ok) throw reply.error ?? 'unavailable'; return reply.data as T;
@@ -20,6 +21,8 @@ async function send<T>(message: unknown): Promise<T> {
 function notice(error: unknown): void { element('notice').textContent = labels[error as ErrorCode] ?? labels.unavailable; }
 function controls(): void {
   const active = state?.job && !['done','cancelled'].includes(state.job.stage);
+  for (const id of ['import-all','select-tracks']) button(id).disabled = busy || !state?.connected || !!active || !supportedPage || !element<HTMLSelectElement>('destination').value;
+  button('cancel-selection').disabled = busy;
   button('start').disabled = busy || !state?.connected || !!active || !input('demo').checked || !element<HTMLSelectElement>('destination').value;
   button('cancel').disabled = busy || !state?.connected || !state.job || state.job.stage === 'cancelled';
   button('retry').disabled = busy || !state?.connected || !state.job || (!state.job.blocked && !state.job.retryAt);
@@ -30,10 +33,11 @@ async function refreshState(): Promise<void> {
   state = await send<State>({ type:'state' });
   element('connection').textContent = state.connected ? `Подключено · Telegram ${state.telegramUser}` : 'Расширение не подключено';
   const job = state.job;
+  element<HTMLProgressElement>('progress').max = job?.total || 1;
   element<HTMLProgressElement>('progress').value = job?.accepted ?? 0;
-  element('progress-text').textContent = job ? `${job.accepted} / ${job.total} тестовых треков принято` : 'Импорт ещё не запущен';
+  element('progress-text').textContent = job ? `${job.accepted} / ${job.total} ${job.demo ? 'тестовых ' : ''}треков принято` : 'Импорт ещё не запущен';
   const stages: Record<string,string> = { creating:'Создаём импорт', collecting:'Готовим пакет', uploading:'Отправляем пакет', completing:'Завершаем загрузку', done:'Загрузка завершена', cancelled:'Импорт отменён' };
-  element('details').textContent = job ? (job.cancelRequested ? 'Ожидает отмены на сервере. ' : '') + (job.error ? (labels[job.error] ?? labels.unavailable) + (job.blocked ? ' Нажмите «Повторить» после исправления.' : ` Следующая попытка: ${new Date(job.retryAt).toLocaleTimeString()}.`) : `${stages[job.stage] ?? job.stage}. Уникальных добавлено в импорт: ${job.added}. ${job.serverState ? 'Состояние backend: '+job.serverState : ''}`) : '';
+  element('details').textContent = job ? (job.cancelRequested ? 'Ожидает отмены на сервере. ' : '') + (job.error ? (labels[job.error] ?? labels.unavailable) + (job.blocked ? ' Нажмите «Повторить» после исправления.' : ` Следующая попытка: ${new Date(job.retryAt).toLocaleTimeString()}.`) : `${stages[job.stage] ?? job.stage}. ${job.demo ? '' : job.completeness === 'complete' ? 'Полнота DOM-сбора подтверждена. ' : 'Частичный сбор / выбранные треки. '}Уникальных добавлено в импорт: ${job.added}. ${job.serverState ? 'Состояние backend: '+job.serverState : ''}`) : '';
   controls();
   if (state.connected && !loadedDestinations) { loadedDestinations = true; await destinations(''); }
   if (!state.connected) { loadedDestinations = false; element<HTMLSelectElement>('destination').replaceChildren(new Option('Сначала подключитесь','')); }
@@ -60,12 +64,14 @@ button('reconnect').onclick = () => { void action(() => send({type:'reconnect'})
 button('logout').onclick = () => { void action(() => send({type:'logout'})); };
 button('destinations').onclick = () => { void action(() => destinations('')); };
 button('next').onclick = () => { void action(() => destinations(cursor)); };
+for (const [id,mode] of [['import-all','all'],['select-tracks','selected']] as const) button(id).onclick = () => { void action(() => send({type:'capture.open',mode,destinationId:element<HTMLSelectElement>('destination').value,profileKey:input('profile').value})); };
+button('cancel-selection').onclick = () => { void action(() => send({type:'capture.cancel'})); };
 button('start').onclick = () => { void action(() => send({type:'startDemo',destinationId:element<HTMLSelectElement>('destination').value,profileKey:input('profile').value})); };
 button('cancel').onclick = () => { void action(() => send({type:'cancel'})); };
 button('retry').onclick = () => { void action(() => send({type:'resume'})); };
 button('refresh').onclick = () => { void action(() => send({type:'refresh'})); };
 input('demo').onchange = controls; element('destination').onchange = controls;
-void send<{page:null|{source:string;adapter:string;supported:boolean}}>({type:'page'}).then(result => { element('source').textContent = result.page ? `${result.page.source} · ${result.page.adapter === 'stub' ? 'адаптер-заглушка' : result.page.supported ? 'DOM-адаптер доступен (запуск импорта пока только демо)' : 'страница пока не поддерживается'}` : 'Откройте Spotify, Яндекс Музыку или VK Музыку'; }).catch(notice);
+void send<{page:null|{source:string;adapter:string;supported:boolean}}>({type:'page'}).then(result => { supportedPage = !!result.page?.supported; controls(); element('source').textContent = result.page ? `${result.page.source} · ${result.page.adapter === 'stub' ? 'адаптер-заглушка' : result.page.supported ? 'DOM-адаптер доступен' : 'страница пока не поддерживается'}` : 'Откройте Spotify, Яндекс Музыку или VK Музыку'; }).catch(notice);
 void refreshState().catch(notice);
 const timer = setInterval(() => { if (!busy) void refreshState().catch(notice); },2000);
 window.addEventListener('pagehide',()=>clearInterval(timer));

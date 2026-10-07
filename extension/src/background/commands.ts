@@ -66,7 +66,7 @@ export class Commands {
     const connected = !!session && session.origin === this.origin && Date.parse(session.expiresAt) > Date.now();
     // Explicit projection: never serialize a Session or a whole Job into messages.
     return { connected, telegramUser: connected ? session.telegramUser : null, expiresAt: connected ? session.expiresAt : null,
-      job: job ? { stage: job.stage, accepted: job.accepted, added: job.added, total: job.demoTotal, retryAt: job.retryAt, blocked: job.blocked, error: job.error, cancelRequested: job.cancelRequested, serverState: job.serverState, importId: job.importId } : null };
+      job: job ? { stage: job.stage, accepted: job.accepted, added: job.added, total: job.demoTotal, demo: !job.captureId, completeness: job.summary?.completeness, retryAt: job.retryAt, blocked: job.blocked, error: job.error, cancelRequested: job.cancelRequested, serverState: job.serverState, importId: job.importId } : null };
   }
   private async page(): Promise<unknown> {
     const [tab] = await this.browser.tabs.query({ active: true, currentWindow: true });
@@ -76,7 +76,7 @@ export class Commands {
     await this.browser.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
     const response = record(await this.browser.tabs.sendMessage(tab.id, { type: 'page.info' }), ['page']);
     const result = record(response.page, ['source','supported','adapter']);
-    if (result.source !== page.source || result.adapter !== 'stub' || result.supported !== false) throw new AppError('invalid_data');
-    return { page }; // authoritative allowlisted data, not arbitrary content response
+    if (result.source !== page.source || !['stub','ready'].includes(String(result.adapter)) || typeof result.supported !== 'boolean') throw new AppError('invalid_data');
+    return { page: { source:page.source,adapter:result.adapter,supported:result.supported } }; // allowlisted projection
   }
 }

@@ -9,7 +9,7 @@ shutdown. Добавлены domain model, PostgreSQL repositories и schema ver
 и HTTP API для приёма импорта чанками.
 Добавлена MV3 extension foundation: popup, pairing и durable demo outbox.
 Исполнение импорта и музыкальный destination пока не реализованы. Yandex/Spotify/VK DOM adapters
-проверены на синтетических fixtures; подключение к popup/outbox ещё впереди.
+проверены на синтетических fixtures и подключены к popup/outbox: Import all и Select tracks.
 Расширение будет читать только доступный пользователю rendered DOM; API стримингов,
 перехват запросов и передача их credentials запрещены.
 
@@ -220,7 +220,7 @@ npm run build
 боте и введите код в popup. Token хранится в private extension-origin IndexedDB.
 
 Yandex/Spotify/VK DOM adapters поддерживают favorites/playlist/album
-на fixture-разметке, реальный сбор ещё не подключён к popup. Opt-in demo отправляет 450
+на fixture-разметке; popup поддерживает Import all и Select tracks. Opt-in demo отправляет 450
 синтетических треков в выбранную существующую destination collection (не создаёт
 destination автоматически). Работают replay неизменных chunks, backoff,
 progress и cancel. Реальный DOM capture — следующий этап. Отдельная сборка
