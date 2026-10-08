@@ -3,7 +3,6 @@ package importer
 import (
 	"context"
 	"errors"
-	"slices"
 	"time"
 
 	"musicgetter/internal/destination"
@@ -13,14 +12,15 @@ import (
 
 // Work is one bounded item; source credentials never enter the pipeline.
 type Work struct {
-	Import      domain.Import
-	Item        domain.ImportItem
-	Track       domain.CanonicalTrack
-	Connection  domain.DestinationConnection
-	Target      domain.Target
-	Cached      *domain.TrackMapping
-	CachedTrack *domain.DestinationTrack
-	Selected    *domain.DestinationTrack
+	FallbackPending bool
+	Import          domain.Import
+	Item            domain.ImportItem
+	Track           domain.CanonicalTrack
+	Connection      domain.DestinationConnection
+	Target          domain.Target
+	Cached          *domain.TrackMapping
+	CachedTrack     *domain.DestinationTrack
+	Selected        *domain.DestinationTrack
 }
 
 // PipelineStore commits each transition under the current job lease and owner.
@@ -84,8 +84,18 @@ func (p *Pipeline) Process(ctx context.Context, j domain.ImportJob) error {
 	}
 	// Atomic ensure must cover pre-existing membership, concurrent writers, and
 	// repeated calls after arbitrary timeout/restart. Request dedup alone is weaker.
-	if !caps.AtomicEnsureMembership || !slices.Contains(caps.TargetKinds, w.Target.Kind) {
+	if !caps.AtomicEnsureMembership {
 		return p.Store.Finish(ctx, j, domain.ItemFailed, "unsafe_destination")
+	}
+	if err = caps.Validate(); err != nil {
+		return err
+	}
+	w, err = p.resolveTarget(ctx, j, w, b, caps)
+	if errors.Is(err, ErrUnsupportedDestination) {
+		return p.Store.Finish(ctx, j, domain.ItemFailed, "unsupported_target")
+	}
+	if err != nil {
+		return err
 	}
 	if w.Selected == nil {
 		selected, decision, err := p.search(ctx, w, b, caps)
@@ -114,7 +124,7 @@ func (p *Pipeline) Process(ctx context.Context, j domain.ImportJob) error {
 	}
 	// Persisted intent is unknown before any outbound call, including the first. Read
 	// evidence may prove presence, but absence is never proof a previous send failed.
-	if reader, ok := b.Destination.(destination.MembershipReader); ok && caps.ReadMembership {
+	if reader, ok := b.Destination.(destination.MembershipReader); ok && caps.SupportsMembershipLookup {
 		present, err := reader.Contains(ctx, w.Target, w.Selected.ExternalKey)
 		if err != nil {
 			return err

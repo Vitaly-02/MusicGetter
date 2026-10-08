@@ -15,7 +15,7 @@ func (r *PipelineRepository) Finish(ctx context.Context, j domain.ImportJob, sta
 	}
 	return r.leased(ctx, j, func(tx pgx.Tx, i domain.Import) error {
 		if state == domain.ItemAdded || state == domain.ItemAlreadyPresent {
-			tag, err := tx.Exec(ctx, `UPDATE musicgetter.destination_memberships m SET state='applied',updated_at=clock_timestamp() FROM musicgetter.import_items t WHERE t.id=$1 AND m.owner_id=$2 AND m.collection_id=$3 AND m.destination_track_id=t.destination_track_id`, j.ItemID, j.OwnerID, i.DestinationCollectionID)
+			tag, err := tx.Exec(ctx, `UPDATE musicgetter.destination_memberships m SET state='applied',updated_at=clock_timestamp() FROM musicgetter.import_items t WHERE t.id=$1 AND m.owner_id=$2 AND m.collection_id=$3 AND m.destination_track_id=t.destination_track_id`, j.ItemID, j.OwnerID, deliveryCollection(i))
 			if err != nil {
 				return repositoryError(err)
 			}

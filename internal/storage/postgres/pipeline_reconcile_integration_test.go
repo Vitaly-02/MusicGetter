@@ -17,7 +17,7 @@ type atomicOnly struct{ d *atomicDestination }
 
 func (a atomicOnly) Capabilities(ctx context.Context) (destination.Capabilities, error) {
 	c, e := a.d.Capabilities(ctx)
-	c.ReadMembership = false
+	c.SupportsMembershipLookup = false
 	return c, e
 }
 func (a atomicOnly) EnsureTrack(ctx context.Context, r destination.EnsureRequest) (destination.Effect, error) {
@@ -81,7 +81,9 @@ func TestPipelineMigrationPreservesInFlightIntent(t *testing.T) {
 	requireOK(t, err)
 	_, err = postgres.NewMembershipRepository(f.pool).Transition(f.ctx, f.user.ID, ledger.ID, domain.MembershipReserved, domain.MembershipUnknown)
 	requireOK(t, err)
-	requireOK(t, postgres.Migrate(f.ctx, f.cfg, migrations.FS, "down"))
+	for version := migrations.Version; version > 6; version-- {
+		requireOK(t, postgres.Migrate(f.ctx, f.cfg, migrations.FS, "down"))
+	}
 	_, err = f.pool.Exec(f.ctx, `UPDATE musicgetter.imports SET state='running' WHERE id=$1`, i.ID)
 	requireOK(t, err)
 	_, err = f.pool.Exec(f.ctx, `UPDATE musicgetter.import_items SET state='ensuring',destination_track_id=$2 WHERE id=$1`, item.ID, remote.ID)

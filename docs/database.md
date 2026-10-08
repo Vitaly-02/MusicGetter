@@ -1,6 +1,6 @@
 # PostgreSQL: domain model и persistence
 
-Реализованы миграции 00001–00007, expected schema version — 7. Schema `musicgetter`,
+Реализованы миграции 00001–00008, expected schema version — 8. Schema `musicgetter`,
 UUID через `gen_random_uuid()`, timestamptz, bigint для Telegram IDs, duration и
 позиций. Нет pgcrypto/ORM или стороннего генератора UUID. PostgreSQL 17 в Compose.
 
@@ -123,7 +123,7 @@ job. Claim не начинает match/deliver для terminal import; reconcile
 00002 создаёт аккаунты/коллекции; 00003 — tracks/mappings/memberships;
 00004 — imports/items/jobs. Новые таблицы не переписывают старую business data;
 DDL и UNIQUE indexes выполняются на новых таблицах внутри migration transactions.
-Goose lock сериализует runners. Readiness version 7 несовместим со старым бинарником
+Goose lock сериализует runners. Readiness version 8 несовместим со старым бинарником
 version 6: сначала coordinated upgrade, для rolling deploy нужен expand/contract.
 
 Down удаляет соответствующие таблицы вместе с данными. В dev/test можно проверить
@@ -155,3 +155,25 @@ Down сохраняет membership ledger/keys/unknown, преобразует v
 PipelineRepository блокирует parent import → leased job, проверяет generation и
 DB clock до commit. Match checkpoint, membership intent, terminal item/job/import
 согласованы транзакциями; внешний вызов всегда вне transaction.
+
+## Destination targets migration 00008
+
+`destination_target_bindings`: PK requested_collection_id, UNIQUE operation_key,
+immutable bounded title, nullable resolved_collection_id. Composite owner/connection
+FK исключают чужие target collections. `imports.resolved_destination_collection_id`
+имеет такой же FK. Requested collection не меняется: replay create request не
+конфликтует с fallback. UNIQUE membership продолжает защищать фактический playlist.
+Prepare/Bind идут под parent/job locks и lease generation; параллельные imports
+сериализуют creation intent по binding. Remote I/O происходит после commit.
+
+Нет backfill; nullable column совместима с существующими imports. Новый бинарник
+требует schema 8, старый readiness её не принимает. Остановить workers перед upgrade,
+запустить migrate up и обновить binaries. ALTER TABLE берёт ACCESS EXCLUSIVE;
+обычный CREATE INDEX import_items_position(import_id,position,id) может задержать
+запись больших таблиц, планировать maintenance window. Частичные FK indexes
+добавлены для resolved targets.
+
+Down транзакционно отказывается работать при любых bindings/resolved imports,
+включая неизвестный результат создания. Удалять ledger ради rollback нельзя:
+потеря ключа допускает повторный playlist после upgrade. Использовать forward repair.
+На пустом ledger down удаляет новую таблицу, indexes и nullable column.

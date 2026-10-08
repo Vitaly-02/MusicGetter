@@ -3,16 +3,17 @@ package domain
 import "time"
 
 type Import struct {
-	ID                      ID
-	OwnerID                 ID
-	RequestKey              string
-	SourceCollectionID      ID
-	ProfileID               ID
-	Source                  Source
-	DestinationCollectionID ID
-	ConnectionID            ID
-	State                   ImportState
-	CreatedAt               time.Time
+	ResolvedDestinationCollectionID *ID
+	ID                              ID
+	OwnerID                         ID
+	RequestKey                      string
+	SourceCollectionID              ID
+	ProfileID                       ID
+	Source                          Source
+	DestinationCollectionID         ID
+	ConnectionID                    ID
+	State                           ImportState
+	CreatedAt                       time.Time
 }
 
 type ImportItemState string

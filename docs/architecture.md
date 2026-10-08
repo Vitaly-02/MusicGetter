@@ -52,7 +52,7 @@ flowchart TD
 │   ├── import/contracts.go     # lease port; upload.go — ingestion DTO/port
 │   ├── pairing/                # issue/redeem/revoke собственных credentials
 │   ├── matcher/contracts.go    # catalog и versioned matching policy
-│   ├── destination/contracts.go
+│   ├── destination/            # ports, memory, fake, destinationtest
 │   ├── storage/postgres/       # pool, readiness, Goose и domain repositories
 │   ├── api/                    # transport, auth, DTO validation
 │   └── telegram/               # handlers управляющего бота
@@ -171,7 +171,7 @@ Unknown после отмены/исчерпания retries сохраняет�
 - `Catalog` / `Destination.TrackSearcher`: SearchTracks; предоставляет destination integration.
 - `Matcher`: Match; policy version, ranked candidates, no silent ambiguous choice.
 - `Destination`: Capabilities, EnsureTrack; связь с конкретным ботом скрыта.
-- Опциональные `MembershipReader`, `OperationReconciler`, `TargetManager`.
+- Опциональные `MembershipReader`, `OperationReconciler`, `Favorites`, `Playlists`, `Albums` (ADR-0019).
 
 Контракты приведены в .go/.ts; это compile-time границы, не готовый wire protocol.
 Transport DTO не сериализуются напрямую из domain structs. DB repositories реализованы отдельно по ролям и принимают pgxpool или pgx.Tx;
@@ -202,7 +202,7 @@ Ledger знает только наблюдавшиеся системой оп�
 
 После timeout возможен успешный внешний effect. Нельзя просто повторить send.
 Повтор разрешён только с native idempotency/atomic ensure либо после достоверного
-определения результата. ReadMembership=false + нет безопасного ensure/reconciliation
+определения результата. SupportsMembershipLookup=false + нет безопасного ensure/reconciliation
 означает unsupported capability, а не ослабление требований пользователя.
 Database fencing предотвращает устаревший commit, но не отменяет внешний запрос.
 
@@ -236,10 +236,19 @@ graceful shutdown с прекращением claim и завершением/о
 - Есть ли atomic ensure, поиск, чтение membership, receipts и поддержка albums?
   Без них часть требований может оказаться невыполнимой для выбранного бота.
 - Album: в проекте это source collection → destination target; если destination
-  не поддерживает album, предложить явно согласованный playlist или отказ.
+  не поддерживает album, реализован playlist fallback с durable binding (ADR-0019).
+  Без идемпотентного создания — отказ.
 - Set semantics теряет повторные позиции playlist; порядок первой версии — best
   effort. Нужны ли повторы/точный порядок — отдельное продуктовое решение.
 - DOM selectors и признаки полного обхода ещё нужно проверить на реальных страницах.
 - Пороги matcher, длительности leases, retention/quotas, hosting, поддерживаемые
   версии browser требуют реализации и измерений. Bootstrap использует Go 1.27.1
   и PostgreSQL 17 в Compose; integration suite также проверен на локальном PostgreSQL 14.
+
+## Destination abstraction (ADR-0019)
+
+Реализованы capability model, узкие collection ports, reference memory и fault-injection fake.
+Album target без native support получает durable playlist binding, если adapter
+гарантирует идемпотентный CreatePlaylist. Original upload target неизменен; ledger
+использует resolved target. Реального адаптера в registry нет. Контракты, ограничения
+и E2E — [destination.md](destination.md).

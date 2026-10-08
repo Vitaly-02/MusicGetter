@@ -59,6 +59,20 @@ func (r *PipelineRepository) Load(ctx context.Context, j domain.ImportJob) (impo
 		if i.State != domain.ImportQueued && i.State != domain.ImportProcessing {
 			return domain.ErrConflict
 		}
+		if i.ResolvedDestinationCollectionID == nil {
+			var resolved *domain.ID
+			err := tx.QueryRow(ctx, `SELECT resolved_collection_id FROM musicgetter.destination_target_bindings WHERE requested_collection_id=$1 AND owner_id=$2 AND connection_id=$3`, i.DestinationCollectionID, j.OwnerID, i.ConnectionID).Scan(&resolved)
+			if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+				return repositoryError(err)
+			}
+			w.FallbackPending = err == nil && resolved == nil
+			if resolved != nil {
+				i.ResolvedDestinationCollectionID = resolved
+				if _, err = tx.Exec(ctx, `UPDATE musicgetter.imports SET resolved_destination_collection_id=$2 WHERE id=$1`, i.ID, *resolved); err != nil {
+					return repositoryError(err)
+				}
+			}
+		}
 		w.Import = i
 		var err error
 		w.Item, err = scanItem(tx.QueryRow(ctx, `SELECT `+itemColumns+` FROM musicgetter.import_items WHERE owner_id=$1 AND import_id=$2 AND id=$3`, j.OwnerID, j.ImportID, j.ItemID))
@@ -76,7 +90,7 @@ func (r *PipelineRepository) Load(ctx context.Context, j domain.ImportJob) (impo
 		if err != nil {
 			return repositoryError(err)
 		}
-		d, err := NewDestinationCollectionRepository(tx).Get(ctx, j.OwnerID, i.DestinationCollectionID)
+		d, err := NewDestinationCollectionRepository(tx).Get(ctx, j.OwnerID, deliveryCollection(i))
 		if err != nil {
 			return err
 		}
@@ -160,12 +174,12 @@ func (r *PipelineRepository) Intent(ctx context.Context, j domain.ImportJob) (do
 		if err := tx.QueryRow(ctx, `SELECT destination_track_id FROM musicgetter.import_items WHERE owner_id=$1 AND id=$2 AND state='matched'`, j.OwnerID, j.ItemID).Scan(&track); err != nil {
 			return repositoryError(err)
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO musicgetter.destination_memberships(owner_id,connection_id,collection_id,destination_track_id) VALUES($1,$2,$3,$4) ON CONFLICT(collection_id,destination_track_id) DO NOTHING`, j.OwnerID, i.ConnectionID, i.DestinationCollectionID, track)
+		_, err := tx.Exec(ctx, `INSERT INTO musicgetter.destination_memberships(owner_id,connection_id,collection_id,destination_track_id) VALUES($1,$2,$3,$4) ON CONFLICT(collection_id,destination_track_id) DO NOTHING`, j.OwnerID, i.ConnectionID, deliveryCollection(i), track)
 		if err != nil {
 			return repositoryError(err)
 		}
 		// A separate statement uses a fresh READ COMMITTED snapshot after conflict wait.
-		m, err = scanMembership(tx.QueryRow(ctx, `SELECT `+membershipColumns+` FROM musicgetter.destination_memberships WHERE owner_id=$1 AND collection_id=$2 AND destination_track_id=$3 FOR UPDATE`, j.OwnerID, i.DestinationCollectionID, track))
+		m, err = scanMembership(tx.QueryRow(ctx, `SELECT `+membershipColumns+` FROM musicgetter.destination_memberships WHERE owner_id=$1 AND collection_id=$2 AND destination_track_id=$3 FOR UPDATE`, j.OwnerID, deliveryCollection(i), track))
 		if err != nil {
 			return err
 		}
@@ -177,4 +191,11 @@ func (r *PipelineRepository) Intent(ctx context.Context, j domain.ImportJob) (do
 		return repositoryError(err)
 	})
 	return m, err
+}
+
+func deliveryCollection(i domain.Import) domain.ID {
+	if i.ResolvedDestinationCollectionID != nil {
+		return *i.ResolvedDestinationCollectionID
+	}
+	return i.DestinationCollectionID
 }

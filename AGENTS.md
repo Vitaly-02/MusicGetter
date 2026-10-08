@@ -8,7 +8,7 @@ repositories, отдельная команда SQL migrations, управляю
 и bot-issued pairing/extension sessions (ADR-0010), HTTP API приёма импорта
 чанками (ADR-0011, docs/openapi.json), MV3 extension foundation с popup, pairing
 и durable outbox (ADR-0012), Import all/Select tracks с DOM selection (ADR-0016). Import pipeline и durable worker реализованы (ADR-0017), scored matcher со
-staged search/cache — ADR-0018;
+staged search/cache — ADR-0018; Destination ports, memory/fake и durable album fallback — ADR-0019;
 реальные destination adapters ещё не реализованы. Yandex, Spotify и VK DOM adapters реализованы
 и проверены на синтетических fixtures (ADR-0013/0014/0015).
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
@@ -52,6 +52,9 @@ staged search/cache — ADR-0018;
 - Worker допускает sends только с подтверждённым AtomicEnsureMembership. Registry
   cmd/worker пока пуст; fake destination разрешён только в tests. Unknown ledger
   сохраняется при retry exhaustion/cancel, не объявлять отсутствие effect.
+- Destination contracts — docs/destination.md. Albums optional; fallback требует
+  IdempotentCreatePlaylist и durable binding. Не идентифицировать playlist по имени.
+  Requested target immutable; membership использует resolved target.
 - Не объявлять exactly-once внешнего эффекта без доказуемого механизма.
   Неопределённый результат отправки требует reconciliation, не слепого retry.
 - Тысячи и десятки тысяч треков: bounded batches, backpressure, keyset pagination,

@@ -12,7 +12,7 @@ type ImportRepository struct{ db DBTX }
 
 func NewImportRepository(db DBTX) *ImportRepository { return &ImportRepository{db} }
 
-const importColumns = `id,owner_id,request_key,source_collection_id,profile_id,source,destination_collection_id,connection_id,state,created_at`
+const importColumns = `id,owner_id,request_key,source_collection_id,profile_id,source,destination_collection_id,connection_id,state,created_at,resolved_destination_collection_id`
 
 func (r *ImportRepository) Create(ctx context.Context, owner, sourceCollection, destinationCollection domain.ID, requestKey string) (domain.Import, error) {
 	row := r.db.QueryRow(ctx, `INSERT INTO musicgetter.imports AS existing
@@ -54,6 +54,6 @@ func (r *ImportRepository) List(ctx context.Context, owner domain.ID, after *dom
 }
 func scanImport(row pgx.Row) (domain.Import, error) {
 	var v domain.Import
-	err := row.Scan(&v.ID, &v.OwnerID, &v.RequestKey, &v.SourceCollectionID, &v.ProfileID, &v.Source, &v.DestinationCollectionID, &v.ConnectionID, &v.State, &v.CreatedAt)
+	err := row.Scan(&v.ID, &v.OwnerID, &v.RequestKey, &v.SourceCollectionID, &v.ProfileID, &v.Source, &v.DestinationCollectionID, &v.ConnectionID, &v.State, &v.CreatedAt, &v.ResolvedDestinationCollectionID)
 	return v, repositoryError(err)
 }

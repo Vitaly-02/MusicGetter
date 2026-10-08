@@ -109,3 +109,13 @@ semaphore concurrency, cancellation and error/panic/timeout cleanup. Integration
 reopens matcher with empty memory cache: PostgreSQL TrackMapping avoids search for an
 ID-less track even when the destination catalog is now unavailable. Algorithm and
 benchmark command: docs/matching.md. No claims of live-catalog accuracy calibration.
+
+## Destination abstraction (ADR-0019)
+
+`make test`: reusable contract suite для memory/fake, concurrent create, immutable
+keys, pagination/cursor scope, optional albums, partial bulk/replay и lost ACK.
+`make test-integration`: HTTP pairing → chunks → worker → matcher → fake для
+favorites/playlist/album/selection/fallback; repeat import/chunk без дублей.
+Дополнительно shared creation intent, restart клиента, pinned target при изменении
+capabilities, отсутствие writes без safe create, fencing/owner и guard rollback 00008.
+Проверки не подтверждают интеграцию с реальным Telegram music bot.

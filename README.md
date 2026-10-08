@@ -5,10 +5,10 @@ Monorepo для переноса музыкальных коллекций из 
 
 Реализован bootstrap Go backend: environment configuration, PostgreSQL pool,
 SQL migrations, HTTP health endpoints, JSON slog, request ID, recovery и graceful
-shutdown. Добавлены domain model, PostgreSQL repositories и schema version 7. Работают управляющий Telegram bot, pairing/extension sessions
+shutdown. Добавлены domain model, PostgreSQL repositories и schema version 8. Работают управляющий Telegram bot, pairing/extension sessions
 и HTTP API для приёма импорта чанками.
 Добавлена MV3 extension foundation: popup, pairing и durable demo outbox.
-Исполнение импорта и музыкальный destination пока не реализованы. Yandex/Spotify/VK DOM adapters
+Import worker и matcher реализованы; реальный музыкальный destination ещё не подключён. Yandex/Spotify/VK DOM adapters
 проверены на синтетических fixtures и подключены к popup/outbox: Import all и Select tracks.
 Расширение будет читать только доступный пользователю rendered DOM; API стримингов,
 перехват запросов и передача их credentials запрещены.
@@ -308,3 +308,11 @@ TrackMapping и bounded TTL-кэш поиска. Успешно matched track н
 остальные `MATCHER_*` настройки в `.env.example`. Canonical fingerprint не изменён;
 новая миграция для matcher не требуется. Проверки: `make test`, `make lint`,
 `make test-integration`; benchmark: `go test ./internal/matcher -run '^$' -bench . -benchmem`.
+
+## Destination abstraction
+
+Добавлены Favorites/Playlists/optional Albums, capability model, in-memory reference
+и fake с fault injection. Album fallback создаёт `Artist — Album` через durable
+binding и идемпотентный CreatePlaylist. Production registry остаётся пуст.
+Контракты, подключение factory и тесты: [docs/destination.md](docs/destination.md),
+[ADR-0019](docs/adr/0019-destination-ports-and-album-fallback.md).

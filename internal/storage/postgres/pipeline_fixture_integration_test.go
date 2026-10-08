@@ -33,7 +33,7 @@ func newAtomic() *atomicDestination {
 	return &atomicDestination{members: map[string]bool{}, keys: map[string]string{}}
 }
 func (d *atomicDestination) Capabilities(context.Context) (destination.Capabilities, error) {
-	return destination.Capabilities{AtomicEnsureMembership: !d.unsafe, ReadMembership: true, Search: true, TargetKinds: []domain.DestinationCollectionKind{domain.CollectionFavorites, domain.CollectionPlaylist, domain.CollectionAlbum}}, nil
+	return destination.Capabilities{AtomicEnsureMembership: !d.unsafe, SupportsMembershipLookup: true, Search: true, SupportsFavorites: true, SupportsPlaylists: true, SupportsAlbumCollections: true}, nil
 }
 func (d *atomicDestination) SearchTracks(ctx context.Context, q matcher.Query) (matcher.CandidatePage, error) {
 	d.mu.Lock()

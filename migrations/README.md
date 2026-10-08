@@ -14,7 +14,7 @@ Bootstrap `00001_bootstrap.sql` создаёт только пустую schema 
 `public.goose_db_version`. Down первой migration использует DROP SCHEMA RESTRICT, поэтому при
 наличии объектов не уничтожит их и оставит migration применённой.
 
-Новые миграции: последовательный `00007_name.sql`, секции `-- +goose Up` и
+Новые миграции: последовательный `00009_name.sql`, секции `-- +goose Up` и
 `-- +goose Down`. Изменять только ещё не применённые файлы; исправления — новой
 миграцией. Обновлять Version в embed.go. Goose выполняет каждую SQL migration
 в транзакции; session advisory lock сериализует migration runners. Lock wait
@@ -41,3 +41,6 @@ challenge codes сохраняются. Совместимость и огран
 00006 берёт ACCESS EXCLUSIVE для замены imports state CHECK, затем создаёт новые
 upload/receipt tables. Down теряет receipt history и переводит collecting в cancelled;
 прежние uploads нельзя возобновлять. Только coordinated rollback после backup.
+
+00008 добавляет durable destination target bindings; down запрещён при непустом
+creation ledger. Подробности блокировок и rollback — docs/database.md.
