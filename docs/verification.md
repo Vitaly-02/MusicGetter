@@ -89,10 +89,23 @@ RPC isolation, lost start ACK, lost HTTP ACK + worker restart, all/selected comp
 
 Unit: exact matcher (versions, duplicate candidates, ambiguity), capped jitter,
 worker config limits. PostgreSQL integration: повтор favorites/playlist/album/selection,
-source-key cache, повторная проверка provisional mapping, cross-source destination
+source-key cache, переиспользование provisional mapping без remote search (ADR-0018), cross-source destination
 membership, concurrent aliases, preexisting remote membership, chunk fingerprint
 fallback/replay → seal → execution, lost ACK + fresh worker/lease fencing, cancellation
 с late effect evidence, owner isolation, retry exhaustion/expired last lease repair,
 unsafe destination без sends, bounded concurrency/heartbeat/shutdown.
 Contract fake реализует atomic set semantics; это не test реального музыкального бота.
 Extension tests проверяют новый enum progress; OpenAPI и bot labels обновлены вместе.
+
+## Track matcher (ADR-0018)
+
+Table-driven scoring cases: Unicode/ё/е, feat/ft/featuring, punctuation, typo/transposition,
+artist distinctions, live/remix/remaster/radio edit/sped up/slowed/instrumental/acoustic,
+missing duration/album, duration thresholds, ties/margins and conflicting duplicate IDs.
+Search tests verify early exit and exact strategy request counts, title-only restriction,
+bounded pages, error vs empty result, tenant rebinding and preservation of evidence.
+Cache tests cover positive/negative TTL, account isolation, memory/LRU limits, coalescing,
+semaphore concurrency, cancellation and error/panic/timeout cleanup. Integration test
+reopens matcher with empty memory cache: PostgreSQL TrackMapping avoids search for an
+ID-less track even when the destination catalog is now unavailable. Algorithm and
+benchmark command: docs/matching.md. No claims of live-catalog accuracy calibration.

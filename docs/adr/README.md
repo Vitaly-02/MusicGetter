@@ -25,3 +25,5 @@
 - [0016 — Выбор треков и подключение DOM capture к outbox](0016-selection-and-dom-import.md)
 
 - [0017 — Import pipeline, worker и безопасная доставка](0017-import-pipeline.md)
+
+- [0018 — Scored matcher, staged search и caches](0018-scored-track-matcher.md)

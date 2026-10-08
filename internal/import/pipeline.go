@@ -58,7 +58,7 @@ func (r Registry) Resolve(ctx context.Context, c domain.DestinationConnection) (
 type Pipeline struct {
 	Store    PipelineStore
 	Resolver Resolver
-	Matcher  matcher.Matcher
+	Matcher  matcher.TrackMatcher
 }
 
 // Process advances a durable item. Only explicit EffectApplied/AlreadyPresent
@@ -159,22 +159,21 @@ func (p *Pipeline) Process(ctx context.Context, j domain.ImportJob) error {
 }
 
 func (p *Pipeline) search(ctx context.Context, w Work, b Binding, caps destination.Capabilities) (*domain.DestinationTrack, matcher.Decision, error) {
-	if w.Cached != nil && (w.Cached.Origin == domain.MappingManual || w.Track.SourceTrackKey != nil && w.Cached.PolicyVersion == matcher.ExactPolicyVersion) && w.CachedTrack != nil {
+	if w.Cached != nil && w.CachedTrack != nil {
+		// Successful immutable mappings are persistent evidence, including metadata
+		// fallback identities. Policy upgrades never silently overwrite a mapping.
 		return w.CachedTrack, matcher.Decision{Outcome: matcher.OutcomeMatched, PolicyVersion: w.Cached.PolicyVersion}, nil
 	}
-	if !caps.Search || b.Catalog == nil {
+	catalog := b.Catalog
+	if catalog == nil {
+		if searcher, ok := b.Destination.(destination.TrackSearcher); ok {
+			catalog = searcher
+		}
+	}
+	if !caps.Search || catalog == nil {
 		return nil, matcher.Decision{}, ErrUnsupportedDestination
 	}
-	// A bounded search page with an unconsumed cursor cannot prove uniqueness.
-	page, err := b.Catalog.Search(ctx, matcher.Query{Track: w.Track.Metadata, Limit: 50})
-	if err != nil {
-		return nil, matcher.Decision{}, err
-	}
-	if len(page.Candidates) > 50 || page.NextCursor != "" {
-		return nil, matcher.Decision{Outcome: matcher.OutcomeAmbiguous}, nil
-	}
-	observed := domain.ObservedTrack{Ref: domain.SourceRef{ProfileID: w.Track.ProfileID, Source: w.Track.Source, Provisional: w.Track.SourceTrackKey == nil}, Metadata: w.Track.Metadata}
-	d, err := p.Matcher.Match(ctx, observed, page.Candidates)
+	d, err := p.Matcher.Match(ctx, w.Track, w.Import.ConnectionID, catalog)
 	if err != nil {
 		return nil, d, err
 	}

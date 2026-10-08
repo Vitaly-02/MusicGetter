@@ -5,7 +5,7 @@ Telegram bot, собственные extension sessions и MV3 extension foundat
 с popup/pairing/durable demo outbox. Yandex/Spotify/VK DOM adapters реализованы и проверены на fixtures (ADR-0013/0014/0015).
 DOM capture и выбор отдельных треков подключены к popup/outbox (ADR-0016);
 живые страницы пока не проверены вручную.
-Приём импорта, worker и exact matcher реализованы (ADR-0017). Реальный destination adapter не подключён. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011, extension runtime — ADR-0012.
+Приём импорта, worker и scored matcher реализованы (ADR-0017). Реальный destination adapter не подключён. Детали bootstrap — ADR-0008 и README, persistence — ADR-0009 и docs/database.md, Telegram/auth — ADR-0010, extension API — ADR-0011, extension runtime — ADR-0012.
 
 ## Поток данных
 
@@ -117,8 +117,9 @@ Runtime dependencies отсутствуют; fake-indexeddb и jsdom испол�
 Если такой ссылки нет — provisional key из metadata с явной неопределённостью.
 Нельзя объединять разные записи только по title/artist. Одинаковые наблюдения
 можно сжать внутри capture, но fingerprint не доказывает тождественность аудиозаписи. По ADR-0009 canonical
-metadata identity переиспользуется внутри profile между imports; provisional
-mapping требует повторной проверки перед автоматическим принятием совпадения.
+metadata identity переиспользуется внутри profile между imports. По ADR-0018
+успешный mapping, включая provisional identity, используется без повторного search;
+ошибочное решение требует явной инвалидации.
 
 Каждый capture относится к одной коллекции и выбранному source profile. Полный
 импорт библиотеки — несколько captures коллекций, а не один огромный payload.
@@ -136,7 +137,7 @@ Profile задаётся пользователем без чтения streamin
 1. Создать import (created), принимать чанки (receiving). Normalization/fingerprint
    и input dedup выполняются при записи каждого чанка. Capture state остаётся collecting.
 2. Seal в одной транзакции создаёт jobs и queued; пустой import сразу completed.
-3. Worker: processing → cached mapping или bounded search → exact_metadata_v1.
+3. Worker: processing → cached mapping или bounded search → scored_metadata_v1 (docs/matching.md).
    Item pending → searching → matched либо ambiguous/not_found.
 4. Persisted membership intent → проверка applied/optional remote Contains/reconcile
    → atomic EnsureTrack → added/already_present. Unknown не означает отсутствие effect.
@@ -152,7 +153,7 @@ API v1 сохраняет aggregate needs_review (ambiguous), failed (failed + n
 
 Один durable job проходит item со checkpoint matched; SKIP LOCKED, lease heartbeat,
 fencing всех DB transitions, bounded exponential retry/jitter и expired-lease repair.
-Каждый slot держит один item и не более 50 candidates. Лимит 1–64 slots/process.
+Каждый slot держит один item и не более 200 accumulated candidates (50 на ответ). Лимит 1–64 slots/process.
 Ambiguous results не разрешаются автоматически; review workflow пока не реализован.
 Доставка допускается только через atomic membership adapter, подробнее ADR-0017.
 Registry cmd/worker пуст; запускаемый worker честно завершит unsupported items ошибкой.
@@ -167,7 +168,7 @@ Unknown после отмены/исчерпания retries сохраняет�
 - `JobQueue`: Claim, Renew, Complete, Retry, Fail; все изменения fenced lease.
 - `PipelineStore`: Load, Matched, Intent, Finish, Reschedule; атомарные owner-scoped checkpoints.
 - `Resolver`: connection → Destination + Catalog из trusted factory registry.
-- `Catalog`: Search; предоставляет destination integration.
+- `Catalog` / `Destination.TrackSearcher`: SearchTracks; предоставляет destination integration.
 - `Matcher`: Match; policy version, ranked candidates, no silent ambiguous choice.
 - `Destination`: Capabilities, EnsureTrack; связь с конкретным ботом скрыта.
 - Опциональные `MembershipReader`, `OperationReconciler`, `TargetManager`.

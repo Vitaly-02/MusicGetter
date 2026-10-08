@@ -35,7 +35,7 @@ func newAtomic() *atomicDestination {
 func (d *atomicDestination) Capabilities(context.Context) (destination.Capabilities, error) {
 	return destination.Capabilities{AtomicEnsureMembership: !d.unsafe, ReadMembership: true, Search: true, TargetKinds: []domain.DestinationCollectionKind{domain.CollectionFavorites, domain.CollectionPlaylist, domain.CollectionAlbum}}, nil
 }
-func (d *atomicDestination) Search(ctx context.Context, q matcher.Query) (matcher.CandidatePage, error) {
+func (d *atomicDestination) SearchTracks(ctx context.Context, q matcher.Query) (matcher.CandidatePage, error) {
 	d.mu.Lock()
 	d.searches++
 	d.active++
@@ -80,7 +80,11 @@ func (d *atomicDestination) EnsureTrack(_ context.Context, r destination.EnsureR
 	return destination.Effect{State: destination.EffectApplied}, nil
 }
 func pipeline(f fixture, d *atomicDestination) *importer.Pipeline {
-	return &importer.Pipeline{Store: postgres.NewPipelineRepository(f.pool), Matcher: matcher.Exact{}, Resolver: importer.Registry{"fake": func(context.Context, domain.DestinationConnection) (importer.Binding, error) {
+	engine, err := matcher.NewEngine(matcher.DefaultOptions())
+	if err != nil {
+		panic(err)
+	}
+	return &importer.Pipeline{Store: postgres.NewPipelineRepository(f.pool), Matcher: engine, Resolver: importer.Registry{"fake": func(context.Context, domain.DestinationConnection) (importer.Binding, error) {
 		return importer.Binding{Destination: d, Catalog: d}, nil
 	}}}
 }

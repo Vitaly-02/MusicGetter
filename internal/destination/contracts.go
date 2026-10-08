@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"musicgetter/internal/domain"
+	"musicgetter/internal/matcher"
 )
 
 type Capabilities struct {
@@ -66,4 +67,10 @@ type CreateTargetRequest struct {
 
 type TargetManager interface {
 	EnsureTarget(context.Context, CreateTargetRequest) (domain.Target, Effect, error)
+}
+
+// TrackSearcher is the optional search side of a destination, enabled by Search.
+// Keep it separate from the delivery interface: adapters may expose both ports.
+type TrackSearcher interface {
+	SearchTracks(context.Context, matcher.Query) (matcher.CandidatePage, error)
 }

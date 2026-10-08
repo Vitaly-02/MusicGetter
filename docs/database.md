@@ -71,8 +71,9 @@ source keys с одинаковыми metadata остаются отдельны
 
 Canonical metadata immutable: повтор source key возвращает первоначальную запись,
 не меняет evidence существующих imports. Полноценная история metadata revisions и
-capture snapshots — следующий этап. Mapping для provisional track — сохранённое
-решение, а не разрешение автоматически принимать его во всех будущих imports.
+capture snapshots — следующий этап. По ADR-0018 успешный mapping, включая provisional track, переиспользуется без
+повторного remote search. Он сохраняет принятое решение, не доказывает audio identity;
+исправление ошибочного mapping требует явной инвалидации.
 
 ## Repository layer
 

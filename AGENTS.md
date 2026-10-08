@@ -7,7 +7,8 @@
 repositories, отдельная команда SQL migrations, управляющий Telegram bot
 и bot-issued pairing/extension sessions (ADR-0010), HTTP API приёма импорта
 чанками (ADR-0011, docs/openapi.json), MV3 extension foundation с popup, pairing
-и durable outbox (ADR-0012), Import all/Select tracks с DOM selection (ADR-0016). Import pipeline, exact matcher и durable worker реализованы (ADR-0017);
+и durable outbox (ADR-0012), Import all/Select tracks с DOM selection (ADR-0016). Import pipeline и durable worker реализованы (ADR-0017), scored matcher со
+staged search/cache — ADR-0018;
 реальные destination adapters ещё не реализованы. Yandex, Spotify и VK DOM adapters реализованы
 и проверены на синтетических fixtures (ADR-0013/0014/0015).
 Не выдавайте проектируемые возможности за работающие. Пользователь определяет
@@ -41,6 +42,9 @@ repositories, отдельная команда SQL migrations, управляю
   повторяющихся запросов и реальной пользы. HTTP — net/http, логи — slog.
 - Минимум зависимостей. Redis/RabbitMQ пока не добавлять. Очередь — PostgreSQL,
   jobs + SELECT FOR UPDATE SKIP LOCKED, lease, fencing и ограниченные повторы.
+- Matching normalization/scoring описаны в docs/matching.md; версия scored_metadata_v1.
+  Принятые TrackMappings (в том числе без source key) переиспользуются без search.
+  Cache scope owner+connection, version markers не удалять из evidence.
 - Canonical fingerprint v1 и его limitations описаны в docs/database.md и ADR-0009.
   Не менять normalization незаметно; не считать metadata fingerprint акустическим ID.
 - Идемпотентность обязательна на уровнях приёма batch, jobs и membership.

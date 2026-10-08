@@ -45,8 +45,8 @@ func TestPipelineChunkFallbackAndCrossSourceDedup(t *testing.T) {
 		requireOK(t, p.Process(f.ctx, claimOne(t, f)))
 		assertState(t, f, created.ID, domain.ImportCompleted)
 	}
-	if d.adds != 1 || d.calls != 1 || d.searches != 4 {
-		t.Fatalf("adds=%d calls=%d searches=%d (provisional must revalidate)", d.adds, d.calls, d.searches)
+	if d.adds != 1 || d.calls != 1 || d.searches != 1 {
+		t.Fatalf("adds=%d calls=%d searches=%d (persistent mappings and search cache must be reused)", d.adds, d.calls, d.searches)
 	}
 }
 
@@ -92,7 +92,7 @@ func TestPipelineCancellationRetainsEvidenceAndFencesOtherOwners(t *testing.T) {
 
 type catalogFunc func(context.Context, matcher.Query) (matcher.CandidatePage, error)
 
-func (f catalogFunc) Search(ctx context.Context, q matcher.Query) (matcher.CandidatePage, error) {
+func (f catalogFunc) SearchTracks(ctx context.Context, q matcher.Query) (matcher.CandidatePage, error) {
 	return f(ctx, q)
 }
 func TestPipelineAmbiguousAndNotFoundAreTerminal(t *testing.T) {
@@ -123,5 +123,31 @@ func TestPipelineAmbiguousAndNotFoundAreTerminal(t *testing.T) {
 	}
 	if states[domain.ItemAmbiguous] != 1 || states[domain.ItemNotFound] != 1 || d.calls != 0 {
 		t.Fatal("bad decisions", states, d.calls)
+	}
+}
+
+func TestPersistentMappingAvoidsSearchAfterMatcherRestartWithoutSourceKey(t *testing.T) {
+	f := newFixture(t)
+	remote := newAtomic()
+	first := f.importRecord(t, "mapping-first")
+	item := f.item(t, first, "Song")
+	f.enqueue(t, item, 3)
+	p := pipeline(f, remote)
+	p.Resolver = importer.Registry{"fake": func(context.Context, domain.DestinationConnection) (importer.Binding, error) {
+		return importer.Binding{Destination: remote}, nil
+	}}
+	requireOK(t, p.Process(f.ctx, claimOne(t, f)))
+	// A new engine has no search-result cache. A broken catalog must not be called
+	// for the successfully matched canonical fallback identity in PostgreSQL.
+	remote.searchError = true
+	second := f.importRecord(t, "mapping-second")
+	again := f.item(t, second, "Song")
+	f.enqueue(t, again, 3)
+	requireOK(t, pipeline(f, remote).Process(f.ctx, claimOne(t, f)))
+	assertState(t, f, second.ID, domain.ImportCompleted)
+	mapping, err := postgres.NewMappingRepository(f.pool).Get(f.ctx, f.user.ID, item.CanonicalTrackID, f.connection.ID)
+	requireOK(t, err)
+	if mapping.PolicyVersion != matcher.PolicyVersion || remote.searches != 1 || remote.adds != 1 {
+		t.Fatal("mapping cache bypassed", mapping.PolicyVersion, remote.searches, remote.adds)
 	}
 }

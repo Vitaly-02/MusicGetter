@@ -7,10 +7,21 @@ import (
 	"musicgetter/internal/domain"
 )
 
+type Strategy string
+
+const (
+	StrategyArtistTitle  Strategy = "artist_title"
+	StrategyPrimaryTitle Strategy = "primary_artist_title"
+	StrategyTitleAlbum   Strategy = "title_album"
+	StrategyTitleOnly    Strategy = "title_only"
+)
+
 type Query struct {
-	Track  domain.TrackMetadata
-	Limit  int
-	Cursor string
+	Text     string
+	Strategy Strategy
+	Track    domain.TrackMetadata
+	Limit    int
+	Cursor   string
 }
 
 type Candidate struct {
@@ -26,7 +37,7 @@ type CandidatePage struct {
 
 // Catalog is provided by a supported destination integration, never a source API.
 type Catalog interface {
-	Search(context.Context, Query) (CandidatePage, error)
+	SearchTracks(context.Context, Query) (CandidatePage, error)
 }
 
 type Outcome string
@@ -47,4 +58,10 @@ type Decision struct {
 // Matcher applies a versioned policy to a bounded set of candidates.
 type Matcher interface {
 	Match(context.Context, domain.ObservedTrack, []Candidate) (Decision, error)
+}
+
+// TrackMatcher orchestrates bounded destination searches for a canonical observation.
+// Successful persistent mappings are checked by the fenced pipeline before this port.
+type TrackMatcher interface {
+	Match(context.Context, domain.CanonicalTrack, domain.ID, Catalog) (Decision, error)
 }

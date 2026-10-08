@@ -50,7 +50,15 @@ func start(ctx context.Context, logger *slog.Logger) error {
 	// Empty registry fails closed per item; no demo destination in production.
 	registry := importer.Registry{}
 	logger.WarnContext(ctx, "no_destination_adapters_registered")
-	worker := importer.Worker{Queue: postgres.NewJobRepository(pool), Repairer: store, Pipeline: &importer.Pipeline{Store: store, Resolver: registry, Matcher: matcher.Exact{}}, Options: options, Logger: logger}
+	searchOptions, err := config.LoadMatcher()
+	if err != nil {
+		return err
+	}
+	engine, err := matcher.NewEngine(searchOptions)
+	if err != nil {
+		return err
+	}
+	worker := importer.Worker{Queue: postgres.NewJobRepository(pool), Repairer: store, Pipeline: &importer.Pipeline{Store: store, Resolver: registry, Matcher: engine}, Options: options, Logger: logger}
 	logger.InfoContext(ctx, "worker_started", "concurrency", options.Concurrency)
 	return worker.Run(ctx)
 }

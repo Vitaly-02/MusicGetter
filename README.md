@@ -294,10 +294,17 @@ SIGTERM отменяет I/O, durable leases восстанавливаются 
 проверенного Destination/Catalog factory в `cmd/worker`; текущий бинарник завершает
 unsupported items ошибкой и ничего не отправляет музыкальному боту. Tests используют
 contract fake. Автоматические sends разрешены только atomic membership adapter;
-read-before-add не достаточен. Matching — консервативный exact_metadata_v1;
+read-before-add не достаточен. Matching — version-aware scored_metadata_v1 ([алгоритм](docs/matching.md));
 ambiguous/not_found требуют отдельного review workflow, ещё не реализованного.
 
 Schema 7 меняет состояния API: created/receiving/queued/processing и terminal states.
 Для обновления остановите API/bot/worker, примените migration, обновите extension
 и перезапустите процессы. Миграция берёт table locks; rollback и unknown effects
 описаны в [ADR-0017](docs/adr/0017-import-pipeline.md).
+
+Track Matcher использует последовательные query strategies с early exit, persistent
+TrackMapping и bounded TTL-кэш поиска. Успешно matched track не ищется повторно даже
+без source ID. Общий лимит remote searches — `MATCHER_SEARCH_CONCURRENCY` (default 4),
+остальные `MATCHER_*` настройки в `.env.example`. Canonical fingerprint не изменён;
+новая миграция для matcher не требуется. Проверки: `make test`, `make lint`,
+`make test-integration`; benchmark: `go test ./internal/matcher -run '^$' -bench . -benchmem`.
